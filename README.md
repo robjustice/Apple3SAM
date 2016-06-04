@@ -5,9 +5,9 @@ Based on a disassembly of the Apple II SAM programs SAM and RECITER and ported t
 
 The driver outputs to the Apple/// 6 bit DAC. The values are shifted right two bits before outputing. The speech quality seems ok with this approach. I have on the todo list to log the samples from both the A2 and A3 output for the same output and compare.
 
-Two devices are implemented in the driver:
-   .SAM - this can be written to and accepts the standard phonemes as per the A2 SAM.
-   .RECITER - this can be written to and accepts plain text.
+Two devices are implemented in the driver:  
+   .SAM - this can be written to and accepts the standard phonemes as per the A2 SAM.  
+   .RECITER - this can be written to and accepts plain text.  
    
 The Apple2 SAM implementation allowed the Pitch and Speed parameters to be adjusted by poking values directly into the program. The Apple/// drivers do not allow this so the driver has been coded to be able to set the Pitch and Speed by writing these strings to it:
    ```
