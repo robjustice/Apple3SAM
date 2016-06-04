@@ -17,7 +17,7 @@ The Apple2 SAM implementation allowed the Pitch and Speed parameters to be adjus
    ```
    
    
-The error code was able to be read in the original SAM program by peeking the value directly. If an error occurs, eg phoneme not valid, then the error equals the position in the input string where the error occured. If all is ok, the error code = 255. The driver allowe the error code to be passed when a read request occurs. The value is returned as ASCII decimal. eg three ascii chars '255' or '002'.
+The error code was able to be read in the original SAM program by peeking the value directly. If an error occurs, eg phoneme not valid, then the error equals the position in the input string where the error occured. If all is ok, the error code = 255. The driver allows the error code to be passed when a read request occurs. The value is returned as ASCII decimal. eg three ascii chars '255' or '002'.
    
 ##Usage Example
 
@@ -28,6 +28,7 @@ The driver can be used very easily from basic, here is an example program:
    20 PRINT #1;"HELLO"
    30 INPUT #1;ERRCODE$
    ```
+See also the disk image for the original SAM provided programs converted to work with the Apple/// Business basic and this driver.
 
 ##Additional information   
 Refer to the original SAM manual for details on the phonemes and other useful info:
