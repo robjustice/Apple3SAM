@@ -30,9 +30,27 @@ The driver can be used very easily from basic, here is an example program:
    ```
 See also the disk image for the original SAM provided programs converted to work with the Apple/// Business basic and this driver.
 
-##Additional information   
+##Compiling
+This needs to be assembled with either the Apple/// or AppleII Pascal assembler. The Apple /// SCP will then accept the relocatable .CODE file to be read in as a driver. 
+I had some issues getting the correct Pascal text format added to disk image. I ended up using Apple Commander as the way to add the source file to the disk image, and using pascal format disks. I then used Mess running the Apple/// emulation for assembling the code. (the mess command line option -nothrottle speeds the assembly up nicely!)
+
+   ```
+   # create pascal disk image
+   java -jar ac.jar -pas140 pas.dsk volume1
+   #Add source file
+   java -jar ac.jar -p pas.dsk samrec.text text < SamReciter.asm
+   ```
+
+
+##Links   
 Refer to the original SAM manual for details on the phonemes and other useful info:
 [SAM Owner Manual] (http://mirrors.apple2.org.za/Apple%20II%20Documentation%20Project/Interface%20Cards/Speech/Don't%20Ask%20Software%20Automated%20Mouth/Manuals/S.A.M.%20-%20Owner's%20Manual.pdf)
+
+This project was a great help to reverse engineer the disassembly of the SAM code, thanks!
+https://github.com/s-macke/SAM
+
+And this was also very useful
+http://hitmen.c02.at/html/tools_sam.html
 
 ##Todo
 The Driver is a little on the large side. I have implemented some extra buffers to simplify the porting process and to get it working. It would be nice to modify the code to remove these, it would trim at least 512bytes of the driver.
