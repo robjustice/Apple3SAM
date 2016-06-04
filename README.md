@@ -10,9 +10,12 @@ Two devices are implemented in the driver:
    .RECITER - this can be written to and accepts plain text.
    
 The Apple2 SAM implementation allowed the Pitch and Speed parameters to be adjusted by poking values directly into the program. The Apple/// drivers do not allow this so the driver has been coded to be able to set the Pitch and Speed by writing these strings to it:
-   `#P<number>`
-   `#S<number>`
-   `Where number is from 0 - 255, eg #P200`
+   ```
+   #P<number>
+   #S<number>
+   Where number is from 0 - 255, eg #P200
+   ```
+   
    
 The error code was able to be read in the original SAM program by peeking the value directly. If an error occurs, eg phoneme not valid, then the error equals the position in the input string where the error occured. If all is ok, the error code = 255. The driver allowe the error code to be passed when a read request occurs. The value is returned as ASCII decimal. eg three ascii chars '255' or '002'.
    
@@ -20,14 +23,16 @@ The error code was able to be read in the original SAM program by peeking the va
 
 The driver can be used very easily from basic, here is an example program:
 
-`10 OPEN #1,".RECITER"`
-`20 PRINT #1;"HELLO"`
-`30 INPUT #1;ERRCODE$`
+   ```
+   10 OPEN #1,".RECITER"
+   20 PRINT #1;"HELLO"
+   30 INPUT #1;ERRCODE$
+   ```
 
-   
+##Additional information   
 Refer to the original SAM manual for details on the phonemes and other useful info:
 [SAM Owner Manual] (http://mirrors.apple2.org.za/Apple%20II%20Documentation%20Project/Interface%20Cards/Speech/Don't%20Ask%20Software%20Automated%20Mouth/Manuals/S.A.M.%20-%20Owner's%20Manual.pdf)
 
-
-The Driver is a little on the large side. I have implemented some extra buffers to simplify the porting process and to get it working. It would be nice to modify the code to remove these, it would trim 512bytes of the driver.
+##Todo
+The Driver is a little on the large side. I have implemented some extra buffers to simplify the porting process and to get it working. It would be nice to modify the code to remove these, it would trim at least 512bytes of the driver.
 
