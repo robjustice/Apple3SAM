@@ -1,7 +1,7 @@
 # Apple3SAM
 ##Apple /// SAM driver
 
-Based on a disassembly of the Apple II SAM programs SAM and RECITER and ported to be a SOS driver for the Apple///. The code had to be modified to allow it to be relocatable, and to work with standard ASCII as the Apple/// does not run with the MSB set for the text. I'll add the AppleII code to a seperate repository.
+Based on a disassembly of the Apple II SAM programs SAM and RECITER and ported to be a SOS driver for the Apple///. The code had to be modified to allow it to be relocatable, and to work with standard ASCII to suit the Apple/// (Not MSB set ASCII). I'll add the AppleII code to a seperate repository.
 
 The driver outputs to the Apple/// 6 bit DAC. The values are shifted right two bits before outputing. The speech quality seems ok with this approach. I have on the todo list to log the samples from both the A2 and A3 output for the same output and compare.
 
