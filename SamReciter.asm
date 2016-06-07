@@ -1,5 +1,5 @@
             .NOPATCHLIST
-            .TITLE  "SOS SAM Driver -- 0.4  01-Jun-16"
+            .TITLE  "SOS SAM Driver -- 0.42  07-Jun-16"
 ;-----------------------------------------------------------------------
 ;
 ;
@@ -27,6 +27,11 @@
 ;
 ;       0.4     01-Jun-16
 ;               Add Reciter as a sub device
+;       0.41    07-Jun-16
+;               Fix up shift right to convert to 6 bit.
+;       0.42    07-Jun-16
+;               Set speed back to match original sam default. Now speech samples match
+;               A2 sam exactly. (after triming to 6 bits)
 ;
 ;
 ;
@@ -35,7 +40,7 @@
 DEVTYPE     .EQU    61                  ;Character device, read/write, SAM
 SUBTYPE     .EQU    01
 ROBJ        .EQU    524A
-RELEASE     .EQU    0300
+RELEASE     .EQU    0420
             .PAGE
 ;-----------------------------------------------------------------------
 ;
@@ -119,7 +124,7 @@ SLOT0       .BYTE   00                        ;Slot # (not used)
 ;-----------------------------------------------------------------------
             .WORD   2
 PITCH       .BYTE   040                       ;Pitch
-SPEED       .BYTE   044                       ;Speed
+SPEED       .BYTE   048                       ;Speed
             .PAGE
 
 ;-----------------------------------------------------------------------
