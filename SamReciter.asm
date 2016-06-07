@@ -2759,7 +2759,7 @@ L8869       LDA     BUFFER8,Y
             ADC     #080
                     
             LSR     A           ;A3 6bit dac
-			LSR     A           ;A3 6bit dac
+            LSR     A           ;A3 6bit dac
                     
             STA     DACOUT      ; output to DAC
             DEC     L00EA
@@ -2816,6 +2816,10 @@ L88FA       STY     L00EE
             DEX     
             STX     L00F5
             LDA     L89C1,X
+
+            LSR     A                 ; A3 DAC, do it here before the loops
+            LSR     A                 ; A3 DAC
+
             STA     L00F2
             CLC     
             LDA     SAMPDADR+1        ;<;sample data pointer high byte?
@@ -2840,12 +2844,10 @@ L8929       LDA     #008
             LDA     (L00EB),Y
 L892F       ASL     A
             BCC     L8939
-			LSR     L00F2       ; A3 DAC 
-			LSR     L00F2       ; A3 DAC 
             LDX     L00F2
             STX     DACOUT      ; output to DAC
             BNE     L893F
-L8939       LDX     #015          ; A3 DAC >2 bits  #054
+L8939       LDX     #015          ; A3 DAC >2 bits  #054   01010100 -> 00010101
             STX     DACOUT      ; output to DAC
             NOP     
 L893F       LDX     #007
@@ -2867,11 +2869,11 @@ L8958       LDA     #008
             LDA     (L00EB),Y
 L895E       ASL     A
             BCC     L8968
-            LDX     #026             ; A3 dac #09A        
-            STX     DACOUT       ; output to DAC
+            LDX     #026             ; A3 dac #09A        10011010 -> 00100110        
+            STX     DACOUT           ; output to DAC
             BMI     L896E
-L8968       LDX     #019             ;A3 dac #064
-            STX     DACOUT       ; output to DAC
+L8968       LDX     #019             ; A3 dac #064        01100100 -> 00011001
+            STX     DACOUT           ; output to DAC
             NOP     
 L896E       LDX     #006
 L8970       DEX     
