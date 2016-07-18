@@ -32,6 +32,8 @@
 ;       0.42    07-Jun-16
 ;               Set speed back to match original sam default. Now speech samples match
 ;               A2 sam exactly. (after triming to 6 bits)
+;       0.43    17-Jul-16
+;               Convert lowercase input to upper
 ;
 ;
 ;
@@ -40,7 +42,7 @@
 DEVTYPE     .EQU    61                  ;Character device, read/write, SAM
 SUBTYPE     .EQU    01
 ROBJ        .EQU    524A
-RELEASE     .EQU    0420
+RELEASE     .EQU    0430
             .PAGE
 ;-----------------------------------------------------------------------
 ;
@@ -2352,7 +2354,12 @@ $030        LDA     REQCNT              ;either CR or LF
 ;to make it easily work with the existing apple ii code
 ;
 $040        LDA     (BUFFER),Y          ;extended addressing read buffer
-            STA     INPUTBUF,Y          ;copy to local input buffer
+            CMP     #061                ;lower case 'a'
+            BCC     $045                ;less than ascii 'a', keep going
+            CMP     #07B                ;lower case 'z' + 1
+            BCS     $045                ;greater/equal to ascii 'z' + 1,keep going
+            AND     #05F                ;convert to upper case            
+$045        STA     INPUTBUF,Y          ;copy to local input buffer
             INY
             CPY     REQCNT
             BNE     $040			
