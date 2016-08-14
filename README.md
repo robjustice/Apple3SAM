@@ -1,9 +1,9 @@
 # Apple3SAM
 ##Apple /// SAM driver
 
-Based on a disassembly of the Apple II SAM programs SAM and RECITER and ported to be a SOS driver for the Apple///. The code had to be modified to allow it to be relocatable, and to work with standard ASCII to suit the Apple/// (Not MSB set ASCII). I'll add the AppleII code to a seperate repository.
+Based on a disassembly of the Apple II SAM programs SAM and RECITER and ported to be a SOS driver for the Apple///. The code had to be modified to allow it to be relocatable, and to work with standard ASCII to suit the Apple/// (Not MSB set ASCII). I have added the AppleII source code to a seperate folder, it maybe of use if someone if looking to modify the Apple 2 software.
 
-The driver outputs to the Apple/// 6 bit DAC. The values are shifted right two bits before outputing. The speech quality seems ok with this approach. I have on the todo list to log the samples from both the A2 and A3 output for the same output and compare.
+The driver outputs to the Apple/// 6 bit DAC. The values are shifted right two bits before outputing. The speech quality seems ok with this approach. I have compared the DAC output between the original A2 software and this A3 driver using the MESS emulator. I modified it to log the DAC output of both systems to a file and then compared them after adjusting the A2 output to be 6 bits. The result was exactly the same.
 
 Two devices are implemented in the driver:  
    .SAM - this can be written to and accepts the standard phonemes as per the A2 SAM.  
@@ -54,4 +54,6 @@ http://hitmen.c02.at/html/tools_sam.html
 
 ##Todo
 The Driver is a little on the large side. I have implemented some extra buffers to simplify the porting process and to get it working. It would be nice to modify the code to remove these, it would trim at least 512bytes of the driver.
+
+Another option might have been to make this an invokable module rather than a driver. 
 
