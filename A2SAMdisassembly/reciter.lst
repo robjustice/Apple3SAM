@@ -1,0 +1,1969 @@
+ca65 V2.14 - Git d75f9c2
+Main file   : reciter.asm
+Current file: reciter.asm
+
+000000r 1               ;
+000000r 1               ; Reciter
+000000r 1               ; Text to phoneme for the Apple II
+000000r 1               ; Requires SAM to be loaded
+000000r 1               ;
+000000r 1               ; Disassembly by Robert Justice 01-Jun-2016
+000000r 1               ;
+000000r 1               ;
+000000r 1               ; macro to set the most significant bit on for ascii strings and off for the last char
+000000r 1                           .macro     asciiset s
+000000r 1                           .repeat    .strlen(s)-1, i
+000000r 1                           .byte      .strat(s,i) | $80
+000000r 1                           .endrepeat
+000000r 1               			.byte      .strat(s,.strlen(s)-1)
+000000r 1                           .endmacro
+000000r 1               ;
+000000r 1               ; Code equates
+000000r 1               ;
+000000r 1               L00F5       = $00F5
+000000r 1               L00F6       = $00F6
+000000r 1               L00F7       = $00F7
+000000r 1               L00F8       = $00F8
+000000r 1               L00F9       = $00F9
+000000r 1               L00FA       = $00FA
+000000r 1               L00FB       = $00FB
+000000r 1               L00FC       = $00FC
+000000r 1               L00FD       = $00FD
+000000r 1               L00FE       = $00FE
+000000r 1               L00FF       = $00FF
+000000r 1               SAVEZERO    = $8649     ; in SAM
+000000r 1               FINDVAR     = $93B9     ; in SAM
+000000r 1               SAMML       = $940E     ; in SAM
+000000r 1               INPUTSTR    = $9500     ; input buffer
+000000r 1               LFF3A       = $FF3A     ; Bell routine in Apple monitor
+000000r 1               ;
+000000r 1               ; Start of code
+000000r 1               ;
+000000r 1                           .org $58A1
+0058A1  1               ;
+0058A1  1               ;Character flags
+0058A1  1               ;bit7 = Character from A-Z
+0058A1  1               ;bit6 =
+0058A1  1               ;bit5
+0058A1  1               ;bit4
+0058A1  1               ;bit3
+0058A1  1               ;bit2
+0058A1  1               ;bit1
+0058A1  1               ;bit0 = number from 0 - 9
+0058A1  1               ; all zero = invalid char
+0058A1  1               
+0058A1  1  00           CHRFLAGS:   .byte %00000000    ;NUL
+0058A2  1  00                       .byte %00000000    ;SOH
+0058A3  1  00                       .byte %00000000    ;STX
+0058A4  1  00                       .byte %00000000    ;ETX
+0058A5  1  00                       .byte %00000000    ;EOT
+0058A6  1  00                       .byte %00000000    ;ENQ
+0058A7  1  00                       .byte %00000000    ;ACK
+0058A8  1  00                       .byte %00000000    ;BEL
+0058A9  1  00                       .byte %00000000    ;BS
+0058AA  1  00                       .byte %00000000    ;TAB
+0058AB  1  00                       .byte %00000000    ;LF
+0058AC  1  00                       .byte %00000000    ;VT
+0058AD  1  00                       .byte %00000000    ;FF
+0058AE  1  00                       .byte %00000000    ;CR
+0058AF  1  00                       .byte %00000000    ;SO
+0058B0  1  00                       .byte %00000000    ;SI
+0058B1  1  00                       .byte %00000000    ;DLE
+0058B2  1  00                       .byte %00000000    ;DC1
+0058B3  1  00                       .byte %00000000    ;DC2
+0058B4  1  00                       .byte %00000000    ;DC3
+0058B5  1  00                       .byte %00000000    ;DC4
+0058B6  1  00                       .byte %00000000    ;NAK
+0058B7  1  00                       .byte %00000000    ;SYN
+0058B8  1  00                       .byte %00000000    ;ETB
+0058B9  1  00                       .byte %00000000    ;CAN
+0058BA  1  00                       .byte %00000000    ;EM
+0058BB  1  00                       .byte %00000000    ;SUB
+0058BC  1  00                       .byte %00000000    ;ESC
+0058BD  1  00                       .byte %00000000    ;FS
+0058BE  1  00                       .byte %00000000    ;GS
+0058BF  1  00                       .byte %00000000    ;RS
+0058C0  1  00                       .byte %00000000    ;US
+0058C1  1  00                       .byte %00000000    ;(space)
+0058C2  1  02                       .byte %00000010    ;!
+0058C3  1  02                       .byte %00000010    ;"
+0058C4  1  02                       .byte %00000010    ;#
+0058C5  1  02                       .byte %00000010    ;$
+0058C6  1  02                       .byte %00000010    ;%
+0058C7  1  02                       .byte %00000010    ;&
+0058C8  1  82                       .byte %10000010    ;'
+0058C9  1  00                       .byte %00000000    ;(
+0058CA  1  00                       .byte %00000000    ;)
+0058CB  1  02                       .byte %00000010    ;*
+0058CC  1  02                       .byte %00000010    ;+
+0058CD  1  02                       .byte %00000010    ;,
+0058CE  1  02                       .byte %00000010    ;-
+0058CF  1  02                       .byte %00000010    ;.
+0058D0  1  02                       .byte %00000010    ;/
+0058D1  1  03                       .byte %00000011    ;0
+0058D2  1  03                       .byte %00000011    ;1
+0058D3  1  03                       .byte %00000011    ;2
+0058D4  1  03                       .byte %00000011    ;3
+0058D5  1  03                       .byte %00000011    ;4
+0058D6  1  03                       .byte %00000011    ;5
+0058D7  1  03                       .byte %00000011    ;6
+0058D8  1  03                       .byte %00000011    ;7
+0058D9  1  03                       .byte %00000011    ;8
+0058DA  1  03                       .byte %00000011    ;9
+0058DB  1  02                       .byte %00000010    ;:
+0058DC  1  02                       .byte %00000010    ;;
+0058DD  1  02                       .byte %00000010    ;<
+0058DE  1  02                       .byte %00000010    ;=
+0058DF  1  02                       .byte %00000010    ;>
+0058E0  1  02                       .byte %00000010    ;?
+0058E1  1  02                       .byte %00000010    ;@
+0058E2  1  C0                       .byte %11000000    ;A
+0058E3  1  A8                       .byte %10101000    ;B
+0058E4  1  B0                       .byte %10110000    ;C
+0058E5  1  AC                       .byte %10101100    ;D
+0058E6  1  C0                       .byte %11000000    ;E
+0058E7  1  A0                       .byte %10100000    ;F
+0058E8  1  B8                       .byte %10111000    ;G
+0058E9  1  A0                       .byte %10100000    ;H
+0058EA  1  C0                       .byte %11000000    ;I
+0058EB  1  BC                       .byte %10111100    ;J
+0058EC  1  A0                       .byte %10100000    ;K
+0058ED  1  AC                       .byte %10101100    ;L
+0058EE  1  A8                       .byte %10101000    ;M
+0058EF  1  AC                       .byte %10101100    ;N
+0058F0  1  C0                       .byte %11000000    ;O
+0058F1  1  A0                       .byte %10100000    ;P
+0058F2  1  A0                       .byte %10100000    ;Q
+0058F3  1  AC                       .byte %10101100    ;R
+0058F4  1  B4                       .byte %10110100    ;S
+0058F5  1  A4                       .byte %10100100    ;T
+0058F6  1  C0                       .byte %11000000    ;U
+0058F7  1  A8                       .byte %10101000    ;V
+0058F8  1  A8                       .byte %10101000    ;W
+0058F9  1  B0                       .byte %10110000    ;X
+0058FA  1  C0                       .byte %11000000    ;Y
+0058FB  1  BC                       .byte %10111100    ;Z
+0058FC  1  00                       .byte %00000000    ;[
+0058FD  1  00                       .byte %00000000    ;\
+0058FE  1  00                       .byte %00000000    ;]
+0058FF  1  02                       .byte %00000010    ;^
+005900  1  00                       .byte %00000000    ;_
+005901  1               
+005901  1  xx xx xx xx  RECTBUFF:   .res $100
+005905  1  xx xx xx xx  
+005909  1  xx xx xx xx  
+005A01  1               ;
+005A01  1               ;Reciter Applesoft entry
+005A01  1               ;
+005A01  1  20 49 86     RECTAPPS:   jsr SAVEZERO     ;save zero page locations, in SAM
+005A04  1  20 B9 93                 jsr FINDVAR      ;find $SA variable and copy to input buffer, in SAM
+005A07  1  A9 A0        RECTML2:    lda #$A0         ;' ' space char
+005A09  1  8D 01 59                 sta RECTBUFF     ;store in first char of reciter buffer
+005A0C  1  A2 01                    ldx #$01
+005A0E  1  A0 00                    ldy #$00
+005A10  1  B9 00 95     L5A10:      lda INPUTSTR,Y   ;copy input buffer to reciter buffer
+005A13  1  9D 01 59                 sta RECTBUFF,X
+005A16  1  E8                       inx
+005A17  1  C8                       iny
+005A18  1  C0 FF                    cpy #$FF
+005A1A  1  D0 F4                    bne L5A10
+005A1C  1  20 23 5A                 jsr L5A23        ;process input string
+005A1F  1  20 0E 94     L5A1F:      jsr SAMML        ;Go say it, SAM machine language entry
+005A22  1  60                       rts
+005A23  1               ;
+005A23  1               ; Translate the text to phonemes
+005A23  1               ;
+005A23  1  A9 FF        L5A23:      lda #$FF
+005A25  1  85 FA                    sta L00FA        ;input string index
+005A27  1  A9 FF        L5A27:      lda #$FF
+005A29  1  85 F5                    sta L00F5        ;output string index
+005A2B  1  E6 FA        L5A2B:      inc L00FA
+005A2D  1  A6 FA                    ldx L00FA
+005A2F  1  BD 01 59                 lda RECTBUFF,X   ;get char
+005A32  1  85 FD                    sta L00FD
+005A34  1  C9 8D                    cmp #$8D         ;cmp to CR
+005A36  1  D0 08                    bne L5A40        ;no continue
+005A38  1  E6 F5                    inc L00F5        ;yes
+005A3A  1  A6 F5                    ldx L00F5
+005A3C  1  9D 00 95                 sta INPUTSTR,X   ;store CR in output string
+005A3F  1  60                       rts              ;all done
+005A40  1               
+005A40  1  C9 AE        L5A40:      cmp #$AE         ;is it '.'
+005A42  1  D0 1A                    bne L5A5E
+005A44  1  E8                       inx              ;yes
+005A45  1  BD 01 59                 lda RECTBUFF,X   ;get next char
+005A48  1  29 7F                    and #$7F         ;mask of high bit
+005A4A  1  A8                       tay
+005A4B  1  B9 A1 58                 lda CHRFLAGS,Y   ;get flags for this char?
+005A4E  1  29 01                    and #$01         ;check flag bit 0
+005A50  1  D0 0C                    bne L5A5E        ;not set continue processing
+005A52  1  E6 F5                    inc L00F5        ;yes
+005A54  1  A6 F5                    ldx L00F5
+005A56  1  A9 AE                    lda #$AE         ;'.'
+005A58  1  9D 00 95                 sta INPUTSTR,X   ;store in output string
+005A5B  1  4C 2B 5A                 jmp L5A2B        ;continue with next char
+005A5E  1               
+005A5E  1  A5 FD        L5A5E:      lda L00FD        ;load current char
+005A60  1  29 7F                    and #$7F         ;mask of high bit
+005A62  1  A8                       tay
+005A63  1  B9 A1 58                 lda CHRFLAGS,Y   ;get flags for this char?
+005A66  1  85 F6                    sta L00F6
+005A68  1  29 02                    and #$02         ;check flag bit 1
+005A6A  1  F0 0B                    beq L5A77        ;
+005A6C  1  A9 6A                    lda #<RULES      ;setup pointer to rules  #$6A
+005A6E  1  85 FB                    sta L00FB        ;16bit pointer is in FB FC
+005A70  1  A9 5E                    lda #>RULES      ;                        #$5E
+005A72  1  85 FC                    sta L00FC
+005A74  1  4C BB 5A                 jmp L5ABB        ;parse rule
+005A77  1               
+005A77  1  A5 F6        L5A77:      lda L00F6        ;load from temp charflag
+005A79  1  D0 29                    bne L5AA4        ;if flag 0, invalid char
+005A7B  1  A9 A0                    lda #$A0         ;replace with ascii ' '
+005A7D  1  9D 01 59                 sta RECTBUFF,X
+005A80  1  E6 F5                    inc L00F5
+005A82  1  A6 F5                    ldx L00F5
+005A84  1  E0 78                    cpx #$78          ;max string length?
+005A86  1  B0 07                    bcs L5A8F
+005A88  1  9D 00 95                 sta INPUTSTR,X
+005A8B  1  4C 2B 5A                 jmp L5A2B
+005A8E  1               
+005A8E  1  B1           L5A8E:      .res 1,$B1
+005A8F  1               
+005A8F  1  A9 8D        L5A8F:      lda #$8D         ;CR
+005A91  1  9D 00 95                 sta INPUTSTR,X
+005A94  1  A5 FA        			lda L00FA
+005A96  1  8D 8E 5A                 sta L5A8E
+005A99  1  20 1F 5A                 jsr L5A1F
+005A9C  1  AD 8E 5A                 lda L5A8E
+005A9F  1  85 FA                    sta L00FA
+005AA1  1  4C 27 5A                 jmp L5A27
+005AA4  1  A5 F6        L5AA4:      lda L00F6        ;load from temp charflag
+005AA6  1  29 80                    and #$80         ;check bit 7
+005AA8  1  D0 01                    bne L5AAB        ;yes set, so is char from A-Z
+005AAA  1  00                       .byte $00        ;BRK - error, to do
+005AAB  1               
+005AAB  1  A5 FD        L5AAB:      lda L00FD        ;load current char
+005AAD  1  38                       sec
+005AAE  1  E9 C1                    sbc #$C1         ;subtract char 'A', this gives us an index from 0
+005AB0  1  AA                       tax              ;for each letter of the alphabet
+005AB1  1  BD F5 5D                 lda L5DF5,X      ;get the rules table low byte address for that letter
+005AB4  1  85 FB                    sta L00FB        ;store in the lookup pointer - low byte
+005AB6  1  BD 0F 5E                 lda L5E0F,X      ;get the rules table high byte address for that letter
+005AB9  1  85 FC                    sta L00FC        ;store in the lookup pointer - high byte
+005ABB  1               ;
+005ABB  1               ; parse rule
+005ABB  1               ;
+005ABB  1  A0 00        L5ABB:      ldy #$00
+005ABD  1  18           L5ABD:      clc              ;inc 16bit rules pointer
+005ABE  1  A5 FB                    lda L00FB        ;in FB/FC
+005AC0  1  69 01                    adc #$01
+005AC2  1  85 FB                    sta L00FB
+005AC4  1  A5 FC                    lda L00FC
+005AC6  1  69 00                    adc #$00
+005AC8  1  85 FC                    sta L00FC
+005ACA  1  B1 FB                    lda (L00FB),Y    ;load char from rules
+005ACC  1  30 EF                    bmi L5ABD        ;check if last char of rule (msb)
+005ACE  1  C8                       iny              ;MSB not set, inc and we are at the start of a rule
+005ACF  1  B1 FB        L5ACF:      lda (L00FB),Y
+005AD1  1  C9 A8                    cmp #$A8         ;check if '('
+005AD3  1  F0 04                    beq L5AD9        ;yes
+005AD5  1  C8                       iny
+005AD6  1  4C CF 5A                 jmp L5ACF
+005AD9  1  84 FF        L5AD9:      sty L00FF        ;index to ( in FF
+005ADB  1  C8           L5ADB:      iny
+005ADC  1  B1 FB                    lda (L00FB),Y
+005ADE  1  C9 A9                    cmp #$A9         ;check if ')'
+005AE0  1  D0 F9                    bne L5ADB
+005AE2  1  84 FE                    sty L00FE        ;index to ) in FE
+005AE4  1  C8           L5AE4:      iny
+005AE5  1  B1 FB                    lda (L00FB),Y
+005AE7  1  09 80                    ora #$80         ;set MSB
+005AE9  1  C9 BD                    cmp #$BD         ;'='
+005AEB  1  D0 F7                    bne L5AE4
+005AED  1  84 FD                    sty L00FD        ;index to '=' in FD
+005AEF  1  A6 FA                    ldx L00FA        ;current index to input char in FA?
+005AF1  1  86 F9                    stx L00F9
+005AF3  1  A4 FF                    ldy L00FF
+005AF5  1  C8                       iny
+005AF6  1  BD 01 59     L5AF6:      lda RECTBUFF,X   ;current char in input
+005AF9  1  85 F6                    sta L00F6
+005AFB  1  B1 FB                    lda (L00FB),Y    ;get char of current rule
+005AFD  1  C5 F6                    cmp L00F6        ;is it match
+005AFF  1  F0 03                    beq L5B04        ;yes
+005B01  1  4C BB 5A                 jmp L5ABB        ;no, next rule
+005B04  1               ;
+005B04  1  C8           L5B04:      iny
+005B05  1  C4 FE                    cpy L00FE        ;check against ) position
+005B07  1  D0 03                    bne L5B0C        ;no
+005B09  1  4C 12 5B                 jmp L5B12        ;yes, all matched up to )
+005B0C  1  E8           L5B0C:      inx
+005B0D  1  86 F9                    stx L00F9
+005B0F  1  4C F6 5A                 jmp L5AF6        ;check next
+005B12  1  A5 FA        L5B12:      lda L00FA
+005B14  1  85 F8                    sta L00F8
+005B16  1  A4 FF        L5B16:      ldy L00FF
+005B18  1  88                       dey
+005B19  1  84 FF                    sty L00FF
+005B1B  1  B1 FB                    lda (L00FB),Y
+005B1D  1  85 F6                    sta L00F6
+005B1F  1  30 03                    bmi L5B24        ;is it last char of rule
+005B21  1  4C B9 5C                 jmp L5CB9        ;yes
+005B24  1               
+005B24  1  29 7F        L5B24:      and #$7F         ;no
+005B26  1  AA                       tax
+005B27  1  BD A1 58                 lda CHRFLAGS,X   ; check bit 7
+005B2A  1  29 80                    and #$80
+005B2C  1  F0 12                    beq L5B40
+005B2E  1  A6 F8                    ldx L00F8
+005B30  1  CA                       dex
+005B31  1  BD 01 59                 lda RECTBUFF,X
+005B34  1  C5 F6                    cmp L00F6
+005B36  1  F0 03                    beq L5B3B
+005B38  1  4C BB 5A                 jmp L5ABB
+005B3B  1  86 F8        L5B3B:      stx L00F8
+005B3D  1  4C 16 5B                 jmp L5B16
+005B40  1               
+005B40  1  A5 F6        L5B40:      lda L00F6
+005B42  1  C9 A0                    cmp #$A0       ;' '
+005B44  1  D0 03                    bne L5B49
+005B46  1  4C 84 5B                 jmp L5B84
+005B49  1  C9 A3        L5B49:      cmp #$A3       ;'#'
+005B4B  1  D0 03                    bne L5B50
+005B4D  1  4C 93 5B                 jmp L5B93
+005B50  1  C9 AE        L5B50:      cmp #$AE       ;'.'
+005B52  1  D0 03                    bne L5B57
+005B54  1  4C 9D 5B                 jmp L5B9D
+005B57  1  C9 A6        L5B57:      cmp #$A6       ;'&'
+005B59  1  D0 03                    bne L5B5E
+005B5B  1  4C AC 5B                 jmp L5BAC
+005B5E  1  C9 C0        L5B5E:      cmp #$C0       ;'@'
+005B60  1  D0 03                    bne L5B65
+005B62  1  4C CC 5B                 jmp L5BCC
+005B65  1  C9 DE        L5B65:      cmp #$DE       ;'^'
+005B67  1  D0 03                    bne L5B6C
+005B69  1  4C F1 5B                 jmp L5BF1
+005B6C  1  C9 AB        L5B6C:      cmp #$AB       ;'+'
+005B6E  1  D0 03                    bne L5B73
+005B70  1  4C 00 5C                 jmp L5C00
+005B73  1  C9 BA        L5B73:      cmp #$BA       ;':'
+005B75  1  D0 03                    bne L5B7A
+005B77  1  4C 15 5C                 jmp L5C15
+005B7A  1  20 3A FF     L5B7A:      jsr LFF3A         ;bell
+005B7D  1  20 3A FF                 jsr LFF3A
+005B80  1  20 3A FF                 jsr LFF3A
+005B83  1  00                       .byte $00         ;BRK
+005B84  1  20 24 5C     L5B84:      jsr L5C24
+005B87  1  29 80                    and #$80
+005B89  1  F0 03                    beq L5B8E
+005B8B  1  4C BB 5A                 jmp L5ABB
+005B8E  1  86 F8        L5B8E:      stx L00F8
+005B90  1  4C 16 5B                 jmp L5B16
+005B93  1  20 24 5C     L5B93:      jsr L5C24
+005B96  1  29 40                    and #$40
+005B98  1  D0 F4                    bne L5B8E
+005B9A  1  4C BB 5A                 jmp L5ABB
+005B9D  1  20 24 5C     L5B9D:      jsr L5C24
+005BA0  1  29 08                    and #$08
+005BA2  1  D0 03                    bne L5BA7
+005BA4  1  4C BB 5A                 jmp L5ABB
+005BA7  1  86 F8        L5BA7:      stx L00F8
+005BA9  1  4C 16 5B                 jmp L5B16
+005BAC  1  20 24 5C     L5BAC:      jsr L5C24
+005BAF  1  29 10                    and #$10
+005BB1  1  D0 F4                    bne L5BA7
+005BB3  1  BD 01 59                 lda RECTBUFF,X
+005BB6  1  C9 C8                    cmp #$C8            ;'H'
+005BB8  1  F0 03                    beq L5BBD
+005BBA  1  4C BB 5A                 jmp L5ABB
+005BBD  1  CA           L5BBD:      dex
+005BBE  1  BD 01 59                 lda RECTBUFF,X
+005BC1  1  C9 C3                    cmp #$C3            ;'C'
+005BC3  1  F0 E2                    beq L5BA7
+005BC5  1  C9 D3                    cmp #$D3            ;'S'
+005BC7  1  F0 DE                    beq L5BA7
+005BC9  1  4C BB 5A                 jmp L5ABB
+005BCC  1  20 24 5C     L5BCC:      jsr L5C24
+005BCF  1  29 04                    and #$04
+005BD1  1  D0 D4                    bne L5BA7
+005BD3  1  BD 01 59                 lda RECTBUFF,X
+005BD6  1  C9 C8                    cmp #$C8            ;'H'
+005BD8  1  F0 03                    beq L5BDD
+005BDA  1  4C BB 5A                 jmp L5ABB
+005BDD  1  C9 D4        L5BDD:      cmp #$D4            ;'T'
+005BDF  1  F0 0B                    beq L5BEC
+005BE1  1  C9 C3                    cmp #$C3            ;'C'
+005BE3  1  F0 07                    beq L5BEC
+005BE5  1  C9 D3                    cmp #$D3            ;'S'
+005BE7  1  F0 03                    beq L5BEC
+005BE9  1  4C BB 5A                 jmp L5ABB
+005BEC  1  86 F8        L5BEC:      stx L00F8
+005BEE  1  4C 16 5B                 jmp L5B16
+005BF1  1  20 24 5C     L5BF1:      jsr L5C24
+005BF4  1  29 20                    and #$20
+005BF6  1  D0 03                    bne L5BFB
+005BF8  1  4C BB 5A                 jmp L5ABB
+005BFB  1  86 F8        L5BFB:      stx L00F8
+005BFD  1  4C 16 5B                 jmp L5B16
+005C00  1  A6 F8        L5C00:      ldx L00F8
+005C02  1  CA                       dex
+005C03  1  BD 01 59                 lda RECTBUFF,X
+005C06  1  C9 C5                    cmp #$C5             ;'E'
+005C08  1  F0 F1                    beq L5BFB
+005C0A  1  C9 C9                    cmp #$C9             ;'I'
+005C0C  1  F0 ED                    beq L5BFB
+005C0E  1  C9 D9        L5C0E:      cmp #$D9             ;'Y'
+005C10  1  F0 E9                    beq L5BFB
+005C12  1  4C BB 5A                 jmp L5ABB
+005C15  1  20 24 5C     L5C15:      jsr L5C24
+005C18  1  29 20                    and #$20
+005C1A  1  D0 03                    bne L5C1F
+005C1C  1  4C 16 5B                 jmp L5B16
+005C1F  1  86 F8        L5C1F:      stx L00F8
+005C21  1  4C 15 5C                 jmp L5C15
+005C24  1  A6 F8        L5C24:      ldx L00F8
+005C26  1  CA                       dex
+005C27  1  BD 01 59                 lda RECTBUFF,X
+005C2A  1  29 7F                    and #$7F
+005C2C  1  A8                       tay
+005C2D  1  B9 A1 58                 lda CHRFLAGS,Y
+005C30  1  60                       rts
+005C31  1               
+005C31  1               ;"COPYRIGHT 1982 DON" (high bit set)
+005C31  1  C3 CF D0 D9              .byte $C3,$CF,$D0,$D9,$D2,$C9,$C7,$C8
+005C35  1  D2 C9 C7 C8  
+005C39  1  D4 A0 B1 B9              .byte $D4,$A0,$B1,$B9,$B8,$B2,$A0,$C4
+005C3D  1  B8 B2 A0 C4  
+005C41  1  CF CE                    .byte $CF,$CE
+005C43  1               ;
+005C43  1               ; get flags
+005C43  1               ;
+005C43  1  A6 F7        L5C43:      ldx L00F7
+005C45  1  E8                       inx
+005C46  1  BD 01 59                 lda RECTBUFF,X
+005C49  1  29 7F                    and #$7F
+005C4B  1  A8                       tay
+005C4C  1  B9 A1 58                 lda CHRFLAGS,Y
+005C4F  1  60                       rts
+005C50  1               
+005C50  1  A6 F7        L5C50:      ldx L00F7         ;is a '%'
+005C52  1  E8                       inx
+005C53  1  BD 01 59                 lda RECTBUFF,X
+005C56  1  C9 C5                    cmp #$C5          ;'E'
+005C58  1  D0 48                    bne L5CA2
+005C5A  1  E8                       inx
+005C5B  1  BD 01 59                 lda RECTBUFF,X
+005C5E  1  29 7F                    and #$7F
+005C60  1  A8                       tay
+005C61  1  CA                       dex
+005C62  1  B9 A1 58                 lda CHRFLAGS,Y
+005C65  1  29 80                    and #$80
+005C67  1  F0 08                    beq L5C71
+005C69  1  E8                       inx
+005C6A  1  BD 01 59                 lda RECTBUFF,X
+005C6D  1  C9 D2                    cmp #$D2          ;'R'
+005C6F  1  D0 05                    bne L5C76
+005C71  1  86 F7        L5C71:      stx L00F7
+005C73  1  4C BD 5C                 jmp L5CBD
+005C76  1  C9 D3        L5C76:      cmp #$D3          ;'S'
+005C78  1  F0 F7                    beq L5C71
+005C7A  1  C9 C4                    cmp #$C4          ;'D'
+005C7C  1  F0 F3                    beq L5C71
+005C7E  1  C9 CC                    cmp #$CC          ;'L'
+005C80  1  D0 0A                    bne L5C8C
+005C82  1  E8                       inx
+005C83  1  BD 01 59                 lda RECTBUFF,X
+005C86  1  C9 D9                    cmp #$D9          ;'Y'
+005C88  1  D0 2C                    bne L5CB6
+005C8A  1  F0 E5                    beq L5C71
+005C8C  1  C9 C6        L5C8C:      cmp #$C6          ;'F'
+005C8E  1  D0 26                    bne L5CB6
+005C90  1  E8                       inx
+005C91  1  BD 01 59                 lda RECTBUFF,X
+005C94  1  C9 D5                    cmp #$D5          ;'U'
+005C96  1  D0 1E                    bne L5CB6
+005C98  1  E8                       inx
+005C99  1  BD 01 59                 lda RECTBUFF,X
+005C9C  1  C9 CC                    cmp #$CC          ;'L'
+005C9E  1  F0 D1                    beq L5C71
+005CA0  1  D0 14                    bne L5CB6
+005CA2  1  C9 C9        L5CA2:      cmp #$C9          ;'I'
+005CA4  1  D0 10                    bne L5CB6
+005CA6  1  E8                       inx
+005CA7  1  BD 01 59                 lda RECTBUFF,X
+005CAA  1  C9 CE                    cmp #$CE          ;'N'
+005CAC  1  D0 08                    bne L5CB6
+005CAE  1  E8                       inx
+005CAF  1  BD 01 59                 lda RECTBUFF,X
+005CB2  1  C9 C7                    cmp #$C7          ;'G'
+005CB4  1  F0 BB                    beq L5C71
+005CB6  1  4C BB 5A     L5CB6:      jmp L5ABB
+005CB9  1               ;
+005CB9  1               ;matching rule?
+005CB9  1               ;
+005CB9  1  A5 F9        L5CB9:      lda L00F9
+005CBB  1  85 F7                    sta L00F7
+005CBD  1  A4 FE        L5CBD:      ldy L00FE
+005CBF  1  C8                       iny
+005CC0  1  C4 FD                    cpy L00FD
+005CC2  1  D0 03                    bne L5CC7
+005CC4  1  4C D4 5D                 jmp L5DD4
+005CC7  1  84 FE        L5CC7:      sty L00FE
+005CC9  1  B1 FB                    lda (L00FB),Y
+005CCB  1  85 F6                    sta L00F6
+005CCD  1  29 7F                    and #$7F
+005CCF  1  AA                       tax
+005CD0  1  BD A1 58                 lda CHRFLAGS,X
+005CD3  1  29 80                    and #$80            ;check flag bit7
+005CD5  1  F0 12                    beq L5CE9
+005CD7  1  A6 F7                    ldx L00F7
+005CD9  1  E8                       inx
+005CDA  1  BD 01 59                 lda RECTBUFF,X
+005CDD  1  C5 F6                    cmp L00F6
+005CDF  1  F0 03                    beq L5CE4
+005CE1  1  4C BB 5A                 jmp L5ABB
+005CE4  1  86 F7        L5CE4:      stx L00F7
+005CE6  1  4C BD 5C                 jmp L5CBD
+005CE9  1  A5 F6        L5CE9:      lda L00F6
+005CEB  1  C9 A0                    cmp #$A0      ;' '
+005CED  1  D0 03                    bne L5CF2
+005CEF  1  4C 34 5D                 jmp L5D34
+005CF2  1  C9 A3        L5CF2:      cmp #$A3      ;'#'
+005CF4  1  D0 03                    bne L5CF9
+005CF6  1  4C 43 5D                 jmp L5D43
+005CF9  1  C9 AE        L5CF9:      cmp #$AE      ;'.'
+005CFB  1  D0 03                    bne L5D00
+005CFD  1  4C 4D 5D                 jmp L5D4D
+005D00  1  C9 A6        L5D00:      cmp #$A6      ;'&'
+005D02  1  D0 03                    bne L5D07
+005D04  1  4C 5C 5D                 jmp L5D5C
+005D07  1  C9 C0        L5D07:      cmp #$C0      ;'@'
+005D09  1  D0 03                    bne L5D0E
+005D0B  1  4C 7C 5D                 jmp L5D7C
+005D0E  1  C9 DE        L5D0E:      cmp #$DE      ;'^'
+005D10  1  D0 03                    bne L5D15
+005D12  1  4C A1 5D                 jmp L5DA1
+005D15  1  C9 AB        L5D15:      cmp #$AB      ;'+'
+005D17  1  D0 03                    bne L5D1C
+005D19  1  4C B0 5D                 jmp L5DB0
+005D1C  1  C9 BA        L5D1C:      cmp #$BA      ;':'
+005D1E  1  D0 03                    bne L5D23
+005D20  1  4C C5 5D                 jmp L5DC5
+005D23  1  C9 A5        L5D23:      cmp #$A5      ;'%'
+005D25  1  D0 03                    bne L5D2A
+005D27  1  4C 50 5C                 jmp L5C50
+005D2A  1  20 3A FF     L5D2A:      jsr LFF3A     ;monitor bell routine
+005D2D  1  20 3A FF                 jsr LFF3A
+005D30  1  20 3A FF                 jsr LFF3A
+005D33  1  00                       .byte $00     ;BRK
+005D34  1               ;
+005D34  1               ;char is a ' '
+005D34  1  20 43 5C     L5D34:      jsr L5C43     ;get char flags
+005D37  1  29 80                    and #$80      ;check flag bit7
+005D39  1  F0 03                    beq L5D3E
+005D3B  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D3E  1  86 F7        L5D3E:      stx L00F7
+005D40  1  4C BD 5C                 jmp L5CBD
+005D43  1               ;char is a '#'
+005D43  1  20 43 5C     L5D43:      jsr L5C43     ;get char flags
+005D46  1  29 40                    and #$40
+005D48  1  D0 F4                    bne L5D3E
+005D4A  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D4D  1               ;char is a '.'
+005D4D  1  20 43 5C     L5D4D:      jsr L5C43     ;get char flags
+005D50  1  29 08                    and #$08
+005D52  1  D0 03                    bne L5D57
+005D54  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D57  1  86 F7        L5D57:      stx L00F7
+005D59  1  4C BD 5C                 jmp L5CBD
+005D5C  1               ;char is a '&'
+005D5C  1  20 43 5C     L5D5C:      jsr L5C43     ;get char flags
+005D5F  1  29 10                    and #$10
+005D61  1  D0 F4                    bne L5D57
+005D63  1  BD 01 59                 lda RECTBUFF,X
+005D66  1  C9 C8                    cmp #$C8      ;'H'
+005D68  1  F0 03                    beq L5D6D
+005D6A  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D6D  1  E8           L5D6D:      inx
+005D6E  1  BD 01 59                 lda RECTBUFF,X
+005D71  1  C9 C3                    cmp #$C3
+005D73  1  F0 E2                    beq L5D57
+005D75  1  C9 D3                    cmp #$D3
+005D77  1  F0 DE                    beq L5D57
+005D79  1  4C BB 5A                 jmp L5ABB
+005D7C  1               
+005D7C  1  20 43 5C     L5D7C:      jsr L5C43     ;is a '@'
+005D7F  1  29 04                    and #$04
+005D81  1  D0 D4                    bne L5D57
+005D83  1  BD 01 59                 lda RECTBUFF,X
+005D86  1  C9 C8                    cmp #$C8      ;'H'
+005D88  1  F0 03                    beq L5D8D
+005D8A  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D8D  1  C9 D4        L5D8D:      cmp #$D4      ;'T'
+005D8F  1  F0 0B                    beq L5D9C
+005D91  1  C9 C3                    cmp #$C3      ;'C'
+005D93  1  F0 07                    beq L5D9C
+005D95  1  C9 D3                    cmp #$D3      ;'S'
+005D97  1  F0 03                    beq L5D9C
+005D99  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005D9C  1  86 F7        L5D9C:      stx L00F7
+005D9E  1  4C BD 5C                 jmp L5CBD
+005DA1  1               ;
+005DA1  1               ;char is a '^'
+005DA1  1  20 43 5C     L5DA1:      jsr L5C43     ;get char flags
+005DA4  1  29 20                    and #$20
+005DA6  1  D0 03                    bne L5DAB
+005DA8  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005DAB  1  86 F7        L5DAB:      stx L00F7
+005DAD  1  4C BD 5C                 jmp L5CBD
+005DB0  1               ;
+005DB0  1               ;char is a '+'
+005DB0  1  A6 F7        L5DB0:      ldx L00F7
+005DB2  1  E8                       inx
+005DB3  1  BD 01 59                 lda RECTBUFF,X
+005DB6  1  C9 C5                    cmp #$C5
+005DB8  1  F0 F1                    beq L5DAB
+005DBA  1  C9 C9                    cmp #$C9
+005DBC  1  F0 ED                    beq L5DAB
+005DBE  1  C9 D9                    cmp #$D9
+005DC0  1  F0 E9                    beq L5DAB
+005DC2  1  4C BB 5A                 jmp L5ABB     ;check next rule
+005DC5  1               ;
+005DC5  1               ;char is a ';'
+005DC5  1  20 43 5C     L5DC5:      jsr L5C43      ;get char flags
+005DC8  1  29 20                    and #$20
+005DCA  1  D0 03                    bne L5DCF
+005DCC  1  4C BD 5C                 jmp L5CBD
+005DCF  1  86 F7        L5DCF:      stx L00F7
+005DD1  1  4C C5 5D                 jmp L5DC5
+005DD4  1               
+005DD4  1  A4 FD        L5DD4:      ldy L00FD
+005DD6  1  A5 F9                    lda L00F9
+005DD8  1  85 FA                    sta L00FA
+005DDA  1  B1 FB        L5DDA:      lda (L00FB),Y
+005DDC  1  85 F6                    sta L00F6
+005DDE  1  09 80                    ora #$80
+005DE0  1  C9 BD                    cmp #$BD       ;'="
+005DE2  1  F0 07                    beq L5DEB
+005DE4  1  E6 F5                    inc L00F5
+005DE6  1  A6 F5                    ldx L00F5
+005DE8  1  9D 00 95                 sta INPUTSTR,X
+005DEB  1  24 F6        L5DEB:      bit L00F6
+005DED  1  30 03                    bmi L5DF2
+005DEF  1  4C 2B 5A                 jmp L5A2B
+005DF2  1  C8           L5DF2:      iny
+005DF3  1  D0 E5                    bne L5DDA    ; assume y is never zero?
+005DF5  1               
+005DF5  1               ;lookup table to optimse rule table start point
+005DF5  1               ;address of position in table for rule start
+005DF5  1               ;characters A to Z
+005DF5  1               ;low byte
+005DF5  1  14           L5DF5:      .byte <RULESA
+005DF6  1  B1                       .byte <RULESB
+005DF7  1  14                       .byte <RULESC
+005DF8  1  A9                       .byte <RULESD
+005DF9  1  47                       .byte <RULESE
+005DFA  1  D7                       .byte <RULESF
+005DFB  1  18                       .byte <RULESG
+005DFC  1  93                       .byte <RULESH
+005DFD  1  DC                       .byte <RULESI
+005DFE  1  43                       .byte <RULESJ
+005DFF  1  54                       .byte <RULESK
+005E00  1  6B                       .byte <RULESL
+005E01  1  AE                       .byte <RULESM
+005E02  1  0E                       .byte <RULESN
+005E03  1  73                       .byte <RULESO
+005E04  1  CE                       .byte <RULESP
+005E05  1  30                       .byte <RULESQ
+005E06  1  57                       .byte <RULESR
+005E07  1  78                       .byte <RULESS
+005E08  1  61                       .byte <RULEST
+005E09  1  E4                       .byte <RULESU
+005E0A  1  75                       .byte <RULESV
+005E0B  1  93                       .byte <RULESW
+005E0C  1  6F                       .byte <RULESX
+005E0D  1  88                       .byte <RULESY
+005E0E  1  1D                       .byte <RULESZ
+005E0F  1               ;high byte
+005E0F  1  60           L5E0F:      .byte >RULESA
+005E10  1  61                       .byte >RULESB
+005E11  1  62                       .byte >RULESC
+005E12  1  62                       .byte >RULESD
+005E13  1  63                       .byte >RULESE
+005E14  1  64                       .byte >RULESF
+005E15  1  65                       .byte >RULESG
+005E16  1  65                       .byte >RULESH
+005E17  1  65                       .byte >RULESI
+005E18  1  67                       .byte >RULESJ
+005E19  1  67                       .byte >RULESK
+005E1A  1  67                       .byte >RULESL
+005E1B  1  67                       .byte >RULESM
+005E1C  1  68                       .byte >RULESN
+005E1D  1  68                       .byte >RULESO
+005E1E  1  6A                       .byte >RULESP
+005E1F  1  6B                       .byte >RULESQ
+005E20  1  6B                       .byte >RULESR
+005E21  1  6B                       .byte >RULESS
+005E22  1  6C                       .byte >RULEST
+005E23  1  6D                       .byte >RULESU
+005E24  1  6E                       .byte >RULESV
+005E25  1  6E                       .byte >RULESW
+005E26  1  6F                       .byte >RULESX
+005E27  1  6F                       .byte >RULESY
+005E28  1  70                       .byte >RULESZ
+005E29  1               ;
+005E29  1               ;
+005E29  1               ; Reciter Machine Language entry
+005E29  1               ;
+005E29  1  20 49 86     RECTML:		jsr SAVEZERO
+005E2C  1  4C 07 5A                 jmp RECTML2
+005E2F  1               
+005E2F  1  xx xx xx xx  			.res 59     ;padding?
+005E33  1  xx xx xx xx  
+005E37  1  xx xx xx xx  
+005E6A  1               
+005E6A  1               RULES:
+005E6A  1  A8 C1 A9 3D              asciiset "(A)="                   ;this is a dummy rule that is not used
+005E6E  1  A8 A1 A9 BD              asciiset "(!)=."
+005E72  1  2E           
+005E73  1               ;            asciiset "(") =-AH5NKWOWT- "
+005E73  1               ;            asciiset "(")=KWOW4T-"
+005E73  1               ;hack as i can't see to work out how to escape "
+005E73  1  A8 A2                    .byte $A8,$A2
+005E75  1  A9 A0 BD AD              asciiset ") =-AH5NKWOWT- "
+005E79  1  C1 C8 B5 CE  
+005E7D  1  CB D7 CF D7  
+005E84  1  A8 A2                    .byte $A8,$A2
+005E86  1  A9 BD CB D7              asciiset ")=KWOW4T-"
+005E8A  1  CF D7 B4 D4  
+005E8E  1  2D           
+005E8F  1  A8 A3 A9 BD              asciiset "(#)= NAH4MBER"
+005E93  1  A0 CE C1 C8  
+005E97  1  B4 CD C2 C5  
+005E9C  1  A8 A4 A9 BD              asciiset "($)= DAA4LER"
+005EA0  1  A0 C4 C1 C1  
+005EA4  1  B4 CC C5 52  
+005EA8  1  A8 A5 A9 BD              asciiset "(%)= PERSEH4NT"
+005EAC  1  A0 D0 C5 D2  
+005EB0  1  D3 C5 C8 B4  
+005EB6  1  A8 A6 A9 BD              asciiset "(&)= AEND"
+005EBA  1  A0 C1 C5 CE  
+005EBE  1  44           
+005EBF  1  A8 A7 A9 3D              asciiset "(')="
+005EC3  1  A8 AA A9 BD              asciiset "(*)= AE4STERIHSK"
+005EC7  1  A0 C1 C5 B4  
+005ECB  1  D3 D4 C5 D2  
+005ED3  1  A8 AB A9 BD              asciiset "(+)= PLAH4S"
+005ED7  1  A0 D0 CC C1  
+005EDB  1  C8 B4 53     
+005EDE  1  A8 AC A9 BD              asciiset "(,)=,"
+005EE2  1  2C           
+005EE3  1  A0 A8 AD A9              asciiset " (-) =-"
+005EE7  1  A0 BD 2D     
+005EEA  1  A8 AD A9 3D              asciiset "(-)="
+005EEE  1  A8 AE A9 BD              asciiset "(.)= POYNT"
+005EF2  1  A0 D0 CF D9  
+005EF6  1  CE 54        
+005EF8  1  A8 AF A9 BD              asciiset "(/)= SLAE4SH"
+005EFC  1  A0 D3 CC C1  
+005F00  1  C5 B4 D3 48  
+005F04  1  A8 B0 A9 BD              asciiset "(0)= ZIY4ROW"
+005F08  1  A0 DA C9 D9  
+005F0C  1  B4 D2 CF 57  
+005F10  1  A0 A8 B1 D3              asciiset " (1ST)=FER4ST"
+005F14  1  D4 A9 BD C6  
+005F18  1  C5 D2 B4 D3  
+005F1D  1  A0 A8 B1 B0              asciiset " (10TH)=TEH4NTH"
+005F21  1  D4 C8 A9 BD  
+005F25  1  D4 C5 C8 B4  
+005F2C  1  A8 B1 A9 BD              asciiset "(1)= WAH4N"
+005F30  1  A0 D7 C1 C8  
+005F34  1  B4 4E        
+005F36  1  A0 A8 B2 CE              asciiset " (2ND)=SEH4KUND"
+005F3A  1  C4 A9 BD D3  
+005F3E  1  C5 C8 B4 CB  
+005F45  1  A8 B2 A9 BD              asciiset "(2)= TUW4"
+005F49  1  A0 D4 D5 D7  
+005F4D  1  34           
+005F4E  1  A0 A8 B3 D2              asciiset " (3RD)=THER4D"
+005F52  1  C4 A9 BD D4  
+005F56  1  C8 C5 D2 B4  
+005F5B  1  A8 B3 A9 BD              asciiset "(3)= THRIY4"
+005F5F  1  A0 D4 C8 D2  
+005F63  1  C9 D9 34     
+005F66  1  A8 B4 A9 BD              asciiset "(4)= FOH4R"
+005F6A  1  A0 C6 CF C8  
+005F6E  1  B4 52        
+005F70  1  A0 A8 B5 D4              asciiset " (5TH)=FIH4FTH"
+005F74  1  C8 A9 BD C6  
+005F78  1  C9 C8 B4 C6  
+005F7E  1  A8 B5 A9 BD              asciiset "(5)= FAY4V"
+005F82  1  A0 C6 C1 D9  
+005F86  1  B4 56        
+005F88  1  A8 B6 A9 BD              asciiset "(6)= SIH4KS"
+005F8C  1  A0 D3 C9 C8  
+005F90  1  B4 CB 53     
+005F93  1  A8 B7 A9 BD              asciiset "(7)= SEH4VUN"
+005F97  1  A0 D3 C5 C8  
+005F9B  1  B4 D6 D5 4E  
+005F9F  1  A0 A8 B8 D4              asciiset " (8TH)=EY4TH"
+005FA3  1  C8 A9 BD C5  
+005FA7  1  D9 B4 D4 48  
+005FAB  1  A8 B8 A9 BD              asciiset "(8)= EY4T"
+005FAF  1  A0 C5 D9 B4  
+005FB3  1  54           
+005FB4  1  A8 B9 A9 BD              asciiset "(9)= NAY4N"
+005FB8  1  A0 CE C1 D9  
+005FBC  1  B4 4E        
+005FBE  1  A8 BA A9 BD              asciiset "(:)=. "
+005FC2  1  AE 20        
+005FC4  1  A8 BB A9 BD              asciiset "(;)=."
+005FC8  1  2E           
+005FC9  1  A8 BC A9 BD              asciiset "(<)= LEH4S DHAEN"
+005FCD  1  A0 CC C5 C8  
+005FD1  1  B4 D3 A0 C4  
+005FD9  1  A8 BD A9 BD              asciiset "(=)= IY4KWULZ"
+005FDD  1  A0 C9 D9 B4  
+005FE1  1  CB D7 D5 CC  
+005FE6  1  A8 BE A9 BD              asciiset "(>)= GREY4TER DHAEN"
+005FEA  1  A0 C7 D2 C5  
+005FEE  1  D9 B4 D4 C5  
+005FF9  1  A8 BF A9 BD              asciiset "(?)=."
+005FFD  1  2E           
+005FFE  1  A8 C0 A9 BD              asciiset "(@)= AE6T"
+006002  1  A0 C1 C5 B6  
+006006  1  54           
+006007  1  A8 DE A9 BD              asciiset "(^)= KAE4RIXT"
+00600B  1  A0 CB C1 C5  
+00600F  1  B4 D2 C9 D8  
+006014  1  DD 41        RULESA:     asciiset "]A"               ;the start rule for each letter is not used
+006016  1  A0 A8 C1 AE              asciiset " (A.)=EH4Y. "
+00601A  1  A9 BD C5 C8  
+00601E  1  B4 D9 AE 20  
+006022  1  A8 C1 A9 A0              asciiset "(A) =AH "
+006026  1  BD C1 C8 20  
+00602A  1  A0 A8 C1 D2              asciiset " (ARE) =AAR"
+00602E  1  C5 A9 A0 BD  
+006032  1  C1 C1 52     
+006035  1  A0 A8 C1 D2              asciiset " (AR)O=AXR"
+006039  1  A9 CF BD C1  
+00603D  1  D8 52        
+00603F  1  A8 C1 D2 A9              asciiset "(AR)#=EH4R "
+006043  1  A3 BD C5 C8  
+006047  1  B4 D2 20     
+00604A  1  A0 DE A8 C1              asciiset " ^(AS)#=EY4S"
+00604E  1  D3 A9 A3 BD  
+006052  1  C5 D9 B4 53  
+006056  1  A8 C1 A9 D7              asciiset "(A)WA=AX"
+00605A  1  C1 BD C1 58  
+00605E  1  A8 C1 D7 A9              asciiset "(AW)=AO5 "
+006062  1  BD C1 CF B5  
+006066  1  20           
+006067  1  A0 BA A8 C1              asciiset " :(ANY)=EH4NIY"
+00606B  1  CE D9 A9 BD  
+00606F  1  C5 C8 B4 CE  
+006075  1  A8 C1 A9 DE              asciiset "(A)^+#=EY5 "
+006079  1  AB A3 BD C5  
+00607D  1  D9 B5 20     
+006080  1  A3 BA A8 C1              asciiset "#:(ALLY)=ULIY"
+006084  1  CC CC D9 A9  
+006088  1  BD D5 CC C9  
+00608D  1  A0 A8 C1 CC              asciiset " (AL)#=UL"
+006091  1  A9 A3 BD D5  
+006095  1  4C           
+006096  1  A8 C1 C7 C1              asciiset "(AGAIN)=AXGEH4N"
+00609A  1  C9 CE A9 BD  
+00609E  1  C1 D8 C7 C5  
+0060A5  1  A3 BA A8 C1              asciiset "#:(AG)E=IHJ"
+0060A9  1  C7 A9 C5 BD  
+0060AD  1  C9 C8 4A     
+0060B0  1  A8 C1 A9 DE              asciiset "(A)^%=EY"
+0060B4  1  A5 BD C5 59  
+0060B8  1  A8 C1 A9 DE              asciiset "(A)^+:#=AE"
+0060BC  1  AB BA A3 BD  
+0060C0  1  C1 45        
+0060C2  1  A0 BA A8 C1              asciiset " :(A)^+ =EY4 "
+0060C6  1  A9 DE AB A0  
+0060CA  1  BD C5 D9 B4  
+0060CF  1  A0 A8 C1 D2              asciiset " (ARR)=AXR"
+0060D3  1  D2 A9 BD C1  
+0060D7  1  D8 52        
+0060D9  1  A8 C1 D2 D2              asciiset "(ARR)=AE4R"
+0060DD  1  A9 BD C1 C5  
+0060E1  1  B4 52        
+0060E3  1  A0 DE A8 C1              asciiset " ^(AR) =AA5R"
+0060E7  1  D2 A9 A0 BD  
+0060EB  1  C1 C1 B5 52  
+0060EF  1  A8 C1 D2 A9              asciiset "(AR)=AA5R"
+0060F3  1  BD C1 C1 B5  
+0060F7  1  52           
+0060F8  1  A8 C1 C9 D2              asciiset "(AIR)=EH4R"
+0060FC  1  A9 BD C5 C8  
+006100  1  B4 52        
+006102  1  A8 C1 C9 A9              asciiset "(AI)=EY4 "
+006106  1  BD C5 D9 B4  
+00610A  1  20           
+00610B  1  A8 C1 D9 A9              asciiset "(AY)=EY5 "
+00610F  1  BD C5 D9 B5  
+006113  1  20           
+006114  1  A8 C1 D5 A9              asciiset "(AU)=AO4 "
+006118  1  BD C1 CF B4  
+00611C  1  20           
+00611D  1  A3 BA A8 C1              asciiset "#:(AL) =UL"
+006121  1  CC A9 A0 BD  
+006125  1  D5 4C        
+006127  1  A3 BA A8 C1              asciiset "#:(ALS) =ULZ"
+00612B  1  CC D3 A9 A0  
+00612F  1  BD D5 CC 5A  
+006133  1  A8 C1 CC CB              asciiset "(ALK)=AO4K"
+006137  1  A9 BD C1 CF  
+00613B  1  B4 4B        
+00613D  1  A8 C1 CC A9              asciiset "(AL)^=AOL"
+006141  1  DE BD C1 CF  
+006145  1  4C           
+006146  1  A0 BA A8 C1              asciiset " :(ABLE)=EY4BUL"
+00614A  1  C2 CC C5 A9  
+00614E  1  BD C5 D9 B4  
+006155  1  A8 C1 C2 CC              asciiset "(ABLE)=AXBUL"
+006159  1  C5 A9 BD C1  
+00615D  1  D8 C2 D5 4C  
+006161  1  A8 C1 A9 D6              asciiset "(A)VO=EY4"
+006165  1  CF BD C5 D9  
+006169  1  34           
+00616A  1  A8 C1 CE C7              asciiset "(ANG)+=EY4NJ"
+00616E  1  A9 AB BD C5  
+006172  1  D9 B4 CE 4A  
+006176  1  A8 C1 D4 C1              asciiset "(ATARI)=AHTAA4RIY"
+00617A  1  D2 C9 A9 BD  
+00617E  1  C1 C8 D4 C1  
+006187  1  A8 C1 A9 D4              asciiset "(A)TOM=AE"
+00618B  1  CF CD BD C1  
+00618F  1  45           
+006190  1  A8 C1 A9 D4              asciiset "(A)TTI=AE"
+006194  1  D4 C9 BD C1  
+006198  1  45           
+006199  1  A0 A8 C1 D4              asciiset " (AT) =AET"
+00619D  1  A9 A0 BD C1  
+0061A1  1  C5 54        
+0061A3  1  A0 A8 C1 A9              asciiset " (A)T=AH"
+0061A7  1  D4 BD C1 48  
+0061AB  1  A8 C1 A9 BD              asciiset "(A)=AE"
+0061AF  1  C1 45        
+0061B1  1  DD 42        RULESB:     asciiset "]B"
+0061B3  1  A0 A8 C2 A9              asciiset " (B) =BIY4"
+0061B7  1  A0 BD C2 C9  
+0061BB  1  D9 34        
+0061BD  1  A0 A8 C2 C5              asciiset " (BE)^#=BIH"
+0061C1  1  A9 DE A3 BD  
+0061C5  1  C2 C9 48     
+0061C8  1  A8 C2 C5 C9              asciiset "(BEING)=BIY4IHNX"
+0061CC  1  CE C7 A9 BD  
+0061D0  1  C2 C9 D9 B4  
+0061D8  1  A0 A8 C2 CF              asciiset " (BOTH) =BOW4TH"
+0061DC  1  D4 C8 A9 A0  
+0061E0  1  BD C2 CF D7  
+0061E7  1  A0 A8 C2 D5              asciiset " (BUS)#=BIH4Z "
+0061EB  1  D3 A9 A3 BD  
+0061EF  1  C2 C9 C8 B4  
+0061F5  1  A8 C2 D2 C5              asciiset "(BREAK)=BREY5K"
+0061F9  1  C1 CB A9 BD  
+0061FD  1  C2 D2 C5 D9  
+006203  1  A8 C2 D5 C9              asciiset "(BUIL)=BIH4L"
+006207  1  CC A9 BD C2  
+00620B  1  C9 C8 B4 4C  
+00620F  1  A8 C2 A9 BD              asciiset "(B)=B"
+006213  1  42           
+006214  1  DD 43        RULESC:     asciiset "]C"
+006216  1  A0 A8 C3 A9              asciiset " (C) =SIY4"
+00621A  1  A0 BD D3 C9  
+00621E  1  D9 34        
+006220  1  A0 A8 C3 C8              asciiset " (CH)^=K"
+006224  1  A9 DE BD 4B  
+006228  1  DE C5 A8 C3              asciiset "^E(CH)=K"
+00622C  1  C8 A9 BD 4B  
+006230  1  A8 C3 C8 C1              asciiset "(CHA)R#=KEH5"
+006234  1  A9 D2 A3 BD  
+006238  1  CB C5 C8 35  
+00623C  1  A8 C3 C8 A9              asciiset "(CH)=CH"
+006240  1  BD C3 48     
+006243  1  A0 D3 A8 C3              asciiset " S(CI)#=SAY4 "
+006247  1  C9 A9 A3 BD  
+00624B  1  D3 C1 D9 B4  
+006250  1  A8 C3 C9 A9              asciiset "(CI)A=SH"
+006254  1  C1 BD D3 48  
+006258  1  A8 C3 C9 A9              asciiset "(CI)O=SH"
+00625C  1  CF BD D3 48  
+006260  1  A8 C3 C9 A9              asciiset "(CI)EN=SH"
+006264  1  C5 CE BD D3  
+006268  1  48           
+006269  1  A8 C3 C9 D4              asciiset "(CITY)=SIHTIY"
+00626D  1  D9 A9 BD D3  
+006271  1  C9 C8 D4 C9  
+006276  1  A8 C3 A9 AB              asciiset "(C)+=S"
+00627A  1  BD 53        
+00627C  1  A8 C3 CB A9              asciiset "(CK)=K"
+006280  1  BD 4B        
+006282  1  A8 C3 CF CD              asciiset "(COM)=KAHM"
+006286  1  A9 BD CB C1  
+00628A  1  C8 4D        
+00628C  1  A8 C3 D5 C9              asciiset "(CUIT)=KIHT"
+006290  1  D4 A9 BD CB  
+006294  1  C9 C8 54     
+006297  1  A8 C3 D2 C5              asciiset "(CREA)=KRIYEY"
+00629B  1  C1 A9 BD CB  
+00629F  1  D2 C9 D9 C5  
+0062A4  1  A8 C3 A9 BD              asciiset "(C)=K"
+0062A8  1  4B           
+0062A9  1  DD 44        RULESD:     asciiset "]D"
+0062AB  1  A0 A8 C4 A9              asciiset " (D) =DIY4"
+0062AF  1  A0 BD C4 C9  
+0062B3  1  D9 34        
+0062B5  1  A0 A8 C4 D2              asciiset " (DR.) =DAA4KTER"
+0062B9  1  AE A9 A0 BD  
+0062BD  1  C4 C1 C1 B4  
+0062C5  1  A3 BA A8 C4              asciiset "#:(DED) =DIHD"
+0062C9  1  C5 C4 A9 A0  
+0062CD  1  BD C4 C9 C8  
+0062D2  1  AE C5 A8 C4              asciiset ".E(D) =D"
+0062D6  1  A9 A0 BD 44  
+0062DA  1  A3 BA DE C5              asciiset "#:^E(D) =T"
+0062DE  1  A8 C4 A9 A0  
+0062E2  1  BD 54        
+0062E4  1  A0 A8 C4 C5              asciiset " (DE)^#=DIH"
+0062E8  1  A9 DE A3 BD  
+0062EC  1  C4 C9 48     
+0062EF  1  A0 A8 C4 CF              asciiset " (DO) =DUW"
+0062F3  1  A9 A0 BD C4  
+0062F7  1  D5 57        
+0062F9  1  A0 A8 C4 CF              asciiset " (DOES)=DAHZ"
+0062FD  1  C5 D3 A9 BD  
+006301  1  C4 C1 C8 5A  
+006305  1  A8 C4 CF CE              asciiset "(DONE) =DAH5N"
+006309  1  C5 A9 A0 BD  
+00630D  1  C4 C1 C8 B5  
+006312  1  A8 C4 CF C9              asciiset "(DOING)=DUW4IHNX"
+006316  1  CE C7 A9 BD  
+00631A  1  C4 D5 D7 B4  
+006322  1  A0 A8 C4 CF              asciiset " (DOW)=DAW"
+006326  1  D7 A9 BD C4  
+00632A  1  C1 57        
+00632C  1  A3 A8 C4 D5              asciiset "#(DU)A=JUW"
+006330  1  A9 C1 BD CA  
+006334  1  D5 57        
+006336  1  A3 A8 C4 D5              asciiset "#(DU)^#=JAX "
+00633A  1  A9 DE A3 BD  
+00633E  1  CA C1 D8 20  
+006342  1  A8 C4 A9 BD              asciiset "(D)=D"
+006346  1  44           
+006347  1  DD 45        RULESE:     asciiset "]E"
+006349  1  A0 A8 C5 A9              asciiset " (E) =IYIY4"
+00634D  1  A0 BD C9 D9  
+006351  1  C9 D9 34     
+006354  1  A3 BA A8 C5              asciiset "#:(E) ="
+006358  1  A9 A0 3D     
+00635B  1  A7 BA DE A8              asciiset "':^(E) ="
+00635F  1  C5 A9 A0 3D  
+006363  1  A0 BA A8 C5              asciiset " :(E) =IY"
+006367  1  A9 A0 BD C9  
+00636B  1  59           
+00636C  1  A3 A8 C5 C4              asciiset "#(ED) =D"
+006370  1  A9 A0 BD 44  
+006374  1  A3 BA A8 C5              asciiset "#:(E)D ="
+006378  1  A9 C4 A0 3D  
+00637C  1  A8 C5 D6 A9              asciiset "(EV)ER=EH4V"
+006380  1  C5 D2 BD C5  
+006384  1  C8 B4 56     
+006387  1  A8 C5 A9 DE              asciiset "(E)^%=IY4 "
+00638B  1  A5 BD C9 D9  
+00638F  1  B4 20        
+006391  1  A8 C5 D2 C9              asciiset "(ERI)#=IY4RIY"
+006395  1  A9 A3 BD C9  
+006399  1  D9 B4 D2 C9  
+00639E  1  A8 C5 D2 C9              asciiset "(ERI)=EH4RIH"
+0063A2  1  A9 BD C5 C8  
+0063A6  1  B4 D2 C9 48  
+0063AA  1  A3 BA A8 C5              asciiset "#:(ER)#=ER"
+0063AE  1  D2 A9 A3 BD  
+0063B2  1  C5 52        
+0063B4  1  A8 C5 D2 D2              asciiset "(ERROR)=EH4ROHR"
+0063B8  1  CF D2 A9 BD  
+0063BC  1  C5 C8 B4 D2  
+0063C3  1  A8 C5 D2 C1              asciiset "(ERASE)=IHREY5S "
+0063C7  1  D3 C5 A9 BD  
+0063CB  1  C9 C8 D2 C5  
+0063D3  1  A8 C5 D2 A9              asciiset "(ER)#=EHR"
+0063D7  1  A3 BD C5 C8  
+0063DB  1  52           
+0063DC  1  A8 C5 D2 A9              asciiset "(ER)=ER"
+0063E0  1  BD C5 52     
+0063E3  1  A0 A8 C5 D6              asciiset " (EVEN)=IYVEHN"
+0063E7  1  C5 CE A9 BD  
+0063EB  1  C9 D9 D6 C5  
+0063F1  1  A3 BA A8 C5              asciiset "#:(E)W="
+0063F5  1  A9 D7 3D     
+0063F8  1  C0 A8 C5 D7              asciiset "@(EW)=UW"
+0063FC  1  A9 BD D5 57  
+006400  1  A8 C5 D7 A9              asciiset "(EW)=YUW"
+006404  1  BD D9 D5 57  
+006408  1  A8 C5 A9 CF              asciiset "(E)O=IY"
+00640C  1  BD C9 59     
+00640F  1  A3 BA A6 A8              asciiset "#:&(ES) =IHZ"
+006413  1  C5 D3 A9 A0  
+006417  1  BD C9 C8 5A  
+00641B  1  A3 BA A8 C5              asciiset "#:(E)S ="
+00641F  1  A9 D3 A0 3D  
+006423  1  A3 BA A8 C5              asciiset "#:(ELY) =LIY"
+006427  1  CC D9 A9 A0  
+00642B  1  BD CC C9 59  
+00642F  1  A3 BA A8 C5              asciiset "#:(EMENT)=MEHNT"
+006433  1  CD C5 CE D4  
+006437  1  A9 BD CD C5  
+00643E  1  A8 C5 C6 D5              asciiset "(EFUL)=FUHL"
+006442  1  CC A9 BD C6  
+006446  1  D5 C8 4C     
+006449  1  A8 C5 C5 A9              asciiset "(EE)=IY4 "
+00644D  1  BD C9 D9 B4  
+006451  1  20           
+006452  1  A8 C5 C1 D2              asciiset "(EARN)=ER5N"
+006456  1  CE A9 BD C5  
+00645A  1  D2 B5 4E     
+00645D  1  A0 A8 C5 C1              asciiset " (EAR)^=ER5 "
+006461  1  D2 A9 DE BD  
+006465  1  C5 D2 B5 20  
+006469  1  A8 C5 C1 C4              asciiset "(EAD)=EHD"
+00646D  1  A9 BD C5 C8  
+006471  1  44           
+006472  1  A3 BA A8 C5              asciiset "#:(EA) =IYAX"
+006476  1  C1 A9 A0 BD  
+00647A  1  C9 D9 C1 58  
+00647E  1  A8 C5 C1 A9              asciiset "(EA)SU=EH5 "
+006482  1  D3 D5 BD C5  
+006486  1  C8 B5 20     
+006489  1  A8 C5 C1 A9              asciiset "(EA)=IY5 "
+00648D  1  BD C9 D9 B5  
+006491  1  20           
+006492  1  A8 C5 C9 C7              asciiset "(EIGH)=EY4 "
+006496  1  C8 A9 BD C5  
+00649A  1  D9 B4 20     
+00649D  1  A8 C5 C9 A9              asciiset "(EI)=IY4 "
+0064A1  1  BD C9 D9 B4  
+0064A5  1  20           
+0064A6  1  A0 A8 C5 D9              asciiset " (EYE)=AY4 "
+0064AA  1  C5 A9 BD C1  
+0064AE  1  D9 B4 20     
+0064B1  1  A8 C5 D9 A9              asciiset "(EY)=IY"
+0064B5  1  BD C9 59     
+0064B8  1  A8 C5 D5 A9              asciiset "(EU)=YUW5 "
+0064BC  1  BD D9 D5 D7  
+0064C0  1  B5 20        
+0064C2  1  A8 C5 D1 D5              asciiset "(EQUAL)=IY4KWUL"
+0064C6  1  C1 CC A9 BD  
+0064CA  1  C9 D9 B4 CB  
+0064D1  1  A8 C5 A9 BD              asciiset "(E)=EH"
+0064D5  1  C5 48        
+0064D7  1  DD 46        RULESF:     asciiset "]F"
+0064D9  1  A0 A8 C6 A9              asciiset " (F) =EH4F"
+0064DD  1  A0 BD C5 C8  
+0064E1  1  B4 46        
+0064E3  1  A8 C6 D5 CC              asciiset "(FUL)=FUHL"
+0064E7  1  A9 BD C6 D5  
+0064EB  1  C8 4C        
+0064ED  1  A8 C6 D2 C9              asciiset "(FRIEND)=FREH5ND"
+0064F1  1  C5 CE C4 A9  
+0064F5  1  BD C6 D2 C5  
+0064FD  1  A8 C6 C1 D4              asciiset "(FATHER)=FAA4DHER"
+006501  1  C8 C5 D2 A9  
+006505  1  BD C6 C1 C1  
+00650E  1  A8 C6 A9 C6              asciiset "(F)F="
+006512  1  3D           
+006513  1  A8 C6 A9 BD              asciiset "(F)=F"
+006517  1  46           
+006518  1  DD 47        RULESG:     asciiset "]G"
+00651A  1  A0 A8 C7 A9              asciiset " (G) =JIY4"
+00651E  1  A0 BD CA C9  
+006522  1  D9 34        
+006524  1  A8 C7 C9 D6              asciiset "(GIV)=GIH5V"
+006528  1  A9 BD C7 C9  
+00652C  1  C8 B5 56     
+00652F  1  A0 A8 C7 A9              asciiset " (G)I^=G"
+006533  1  C9 DE BD 47  
+006537  1  A8 C7 C5 A9              asciiset "(GE)T=GEH5 "
+00653B  1  D4 BD C7 C5  
+00653F  1  C8 B5 20     
+006542  1  D3 D5 A8 C7              asciiset "SU(GGES)=GJEH4S "
+006546  1  C7 C5 D3 A9  
+00654A  1  BD C7 CA C5  
+006552  1  A8 C7 C7 A9              asciiset "(GG)=G"
+006556  1  BD 47        
+006558  1  A0 C2 A3 A8              asciiset " B#(G)=G"
+00655C  1  C7 A9 BD 47  
+006560  1  A8 C7 A9 AB              asciiset "(G)+=J"
+006564  1  BD 4A        
+006566  1  A8 C7 D2 C5              asciiset "(GREAT)=GREY4T "
+00656A  1  C1 D4 A9 BD  
+00656E  1  C7 D2 C5 D9  
+006575  1  A8 C7 CF CE              asciiset "(GON)E=GAO5N"
+006579  1  A9 C5 BD C7  
+00657D  1  C1 CF B5 4E  
+006581  1  A3 A8 C7 C8              asciiset "#(GH)="
+006585  1  A9 3D        
+006587  1  A0 A8 C7 CE              asciiset " (GN)=N"
+00658B  1  A9 BD 4E     
+00658E  1  A8 C7 A9 BD              asciiset "(G)=G"
+006592  1  47           
+006593  1  DD 48        RULESH:     asciiset "]H"
+006595  1  A0 A8 C8 A9              asciiset " (H) =EY4CH"
+006599  1  A0 BD C5 D9  
+00659D  1  B4 C3 48     
+0065A0  1  A0 A8 C8 C1              asciiset " (HAV)=/HAE6V"
+0065A4  1  D6 A9 BD AF  
+0065A8  1  C8 C1 C5 B6  
+0065AD  1  A0 A8 C8 C5              asciiset " (HERE)=/HIYR"
+0065B1  1  D2 C5 A9 BD  
+0065B5  1  AF C8 C9 D9  
+0065BA  1  A0 A8 C8 CF              asciiset " (HOUR)=AW5ER"
+0065BE  1  D5 D2 A9 BD  
+0065C2  1  C1 D7 B5 C5  
+0065C7  1  A8 C8 CF D7              asciiset "(HOW)=/HAW"
+0065CB  1  A9 BD AF C8  
+0065CF  1  C1 57        
+0065D1  1  A8 C8 A9 A3              asciiset "(H)#=/H"
+0065D5  1  BD AF 48     
+0065D8  1  A8 C8 A9 3D              asciiset "(H)="
+0065DC  1  DD 49        RULESI:     asciiset "]I"
+0065DE  1  A0 A8 C9 CE              asciiset " (IN)=IHN"
+0065E2  1  A9 BD C9 C8  
+0065E6  1  4E           
+0065E7  1  A0 A8 C9 A9              asciiset " (I) =AY4 "
+0065EB  1  A0 BD C1 D9  
+0065EF  1  B4 20        
+0065F1  1  A8 C9 A9 A0              asciiset "(I) =AY"
+0065F5  1  BD C1 59     
+0065F8  1  A8 C9 CE A9              asciiset "(IN)D=AY5N"
+0065FC  1  C4 BD C1 D9  
+006600  1  B5 4E        
+006602  1  D3 C5 CD A8              asciiset "SEM(I)=IY "
+006606  1  C9 A9 BD C9  
+00660A  1  D9 20        
+00660C  1  A0 C1 CE D4              asciiset " ANT(I)=AY"
+006610  1  A8 C9 A9 BD  
+006614  1  C1 59        
+006616  1  A8 C9 C5 D2              asciiset "(IER)=IYER"
+00661A  1  A9 BD C9 D9  
+00661E  1  C5 52        
+006620  1  A3 BA D2 A8              asciiset "#:R(IED) =IYD"
+006624  1  C9 C5 C4 A9  
+006628  1  A0 BD C9 D9  
+00662D  1  A8 C9 C5 C4              asciiset "(IED) =AY5D"
+006631  1  A9 A0 BD C1  
+006635  1  D9 B5 44     
+006638  1  A8 C9 C5 CE              asciiset "(IEN)=IYEHN"
+00663C  1  A9 BD C9 D9  
+006640  1  C5 C8 4E     
+006643  1  A8 C9 C5 A9              asciiset "(IE)T=AY4EH"
+006647  1  D4 BD C1 D9  
+00664B  1  B4 C5 48     
+00664E  1  A8 C9 A7 A9              asciiset "(I')=AY5"
+006652  1  BD C1 D9 35  
+006656  1  A0 BA A8 C9              asciiset " :(I)^%=AY5 "
+00665A  1  A9 DE A5 BD  
+00665E  1  C1 D9 B5 20  
+006662  1  A0 BA A8 C9              asciiset " :(IE) =AY4"
+006666  1  C5 A9 A0 BD  
+00666A  1  C1 D9 34     
+00666D  1  A8 C9 A9 A5              asciiset "(I)%=IY"
+006671  1  BD C9 59     
+006674  1  A8 C9 C5 A9              asciiset "(IE)=IY4 "
+006678  1  BD C9 D9 B4  
+00667C  1  20           
+00667D  1  A0 A8 C9 C4              asciiset " (IDEA)=AYDIY5AH"
+006681  1  C5 C1 A9 BD  
+006685  1  C1 D9 C4 C9  
+00668D  1  A8 C9 A9 DE              asciiset "(I)^+:#=IH"
+006691  1  AB BA A3 BD  
+006695  1  C9 48        
+006697  1  A8 C9 D2 A9              asciiset "(IR)#=AYR"
+00669B  1  A3 BD C1 D9  
+00669F  1  52           
+0066A0  1  A8 C9 DA A9              asciiset "(IZ)%=AYZ"
+0066A4  1  A5 BD C1 D9  
+0066A8  1  5A           
+0066A9  1  A8 C9 D3 A9              asciiset "(IS)%=AYZ"
+0066AD  1  A5 BD C1 D9  
+0066B1  1  5A           
+0066B2  1  C9 DE A8 C9              asciiset "I^(I)^#=IH"
+0066B6  1  A9 DE A3 BD  
+0066BA  1  C9 48        
+0066BC  1  AB DE A8 C9              asciiset "+^(I)^+=AY "
+0066C0  1  A9 DE AB BD  
+0066C4  1  C1 D9 20     
+0066C7  1  A3 BA DE A8              asciiset "#:^(I)^+=IH"
+0066CB  1  C9 A9 DE AB  
+0066CF  1  BD C9 48     
+0066D2  1  A8 C9 A9 DE              asciiset "(I)^+=AY"
+0066D6  1  AB BD C1 59  
+0066DA  1  A8 C9 D2 A9              asciiset "(IR)=ER"
+0066DE  1  BD C5 52     
+0066E1  1  A8 C9 C7 C8              asciiset "(IGH)=AY4 "
+0066E5  1  A9 BD C1 D9  
+0066E9  1  B4 20        
+0066EB  1  A8 C9 CC C4              asciiset "(ILD)=AY5LD "
+0066EF  1  A9 BD C1 D9  
+0066F3  1  B5 CC C4 20  
+0066F7  1  A0 A8 C9 C7              asciiset " (IGN)=IHGN"
+0066FB  1  CE A9 BD C9  
+0066FF  1  C8 C7 4E     
+006702  1  A8 C9 C7 CE              asciiset "(IGN) =AY4N"
+006706  1  A9 A0 BD C1  
+00670A  1  D9 B4 4E     
+00670D  1  A8 C9 C7 CE              asciiset "(IGN)^=AY4N "
+006711  1  A9 DE BD C1  
+006715  1  D9 B4 CE 20  
+006719  1  A8 C9 C7 CE              asciiset "(IGN)%=AY4N"
+00671D  1  A9 A5 BD C1  
+006721  1  D9 B4 4E     
+006724  1  A8 C9 C3 D2              asciiset "(ICRO)=AY4KROH"
+006728  1  CF A9 BD C1  
+00672C  1  D9 B4 CB D2  
+006732  1  A8 C9 D1 D5              asciiset "(IQUE)=IY4K"
+006736  1  C5 A9 BD C9  
+00673A  1  D9 B4 4B     
+00673D  1  A8 C9 A9 BD              asciiset "(I)=IH"
+006741  1  C9 48        
+006743  1  DD 4A        RULESJ:     asciiset "]J"
+006745  1  A0 A8 CA A9              asciiset " (J) =JEY4"
+006749  1  A0 BD CA C5  
+00674D  1  D9 34        
+00674F  1  A8 CA A9 BD              asciiset "(J)=J"
+006753  1  4A           
+006754  1  DD 4B        RULESK:     asciiset "]K"
+006756  1  A0 A8 CB A9              asciiset " (K) =KEY4"
+00675A  1  A0 BD CB C5  
+00675E  1  D9 34        
+006760  1  A0 A8 CB A9              asciiset " (K)N="
+006764  1  CE 3D        
+006766  1  A8 CB A9 BD              asciiset "(K)=K"
+00676A  1  4B           
+00676B  1  DD 4C        RULESL:     asciiset "]L"
+00676D  1  A0 A8 CC A9              asciiset " (L) =EH4L"
+006771  1  A0 BD C5 C8  
+006775  1  B4 4C        
+006777  1  A8 CC CF A9              asciiset "(LO)C#=LOW"
+00677B  1  C3 A3 BD CC  
+00677F  1  CF 57        
+006781  1  CC A8 CC A9              asciiset "L(L)="
+006785  1  3D           
+006786  1  A3 BA DE A8              asciiset "#:^(L)%=UL"
+00678A  1  CC A9 A5 BD  
+00678E  1  D5 4C        
+006790  1  A8 CC C5 C1              asciiset "(LEAD)=LIYD"
+006794  1  C4 A9 BD CC  
+006798  1  C9 D9 44     
+00679B  1  A0 A8 CC C1              asciiset " (LAUGH)=LAE4F"
+00679F  1  D5 C7 C8 A9  
+0067A3  1  BD CC C1 C5  
+0067A9  1  A8 CC A9 BD              asciiset "(L)=L"
+0067AD  1  4C           
+0067AE  1  DD 4D        RULESM:     asciiset "]M"
+0067B0  1  A0 A8 CD A9              asciiset " (M) =EH4M"
+0067B4  1  A0 BD C5 C8  
+0067B8  1  B4 4D        
+0067BA  1  A0 A8 CD D2              asciiset " (MR.) =MIH4STER"
+0067BE  1  AE A9 A0 BD  
+0067C2  1  CD C9 C8 B4  
+0067CA  1  A0 A8 CD D3              asciiset " (MS.)=MIH5Z"
+0067CE  1  AE A9 BD CD  
+0067D2  1  C9 C8 B5 5A  
+0067D6  1  A0 A8 CD D2              asciiset " (MRS.) =MIH4SIXZ"
+0067DA  1  D3 AE A9 A0  
+0067DE  1  BD CD C9 C8  
+0067E7  1  A8 CD CF D6              asciiset "(MOV)=MUW4V"
+0067EB  1  A9 BD CD D5  
+0067EF  1  D7 B4 56     
+0067F2  1  A8 CD C1 C3              asciiset "(MACHIN)=MAHSHIY5N"
+0067F6  1  C8 C9 CE A9  
+0067FA  1  BD CD C1 C8  
+006804  1  CD A8 CD A9              asciiset "M(M)="
+006808  1  3D           
+006809  1  A8 CD A9 BD              asciiset "(M)=M"
+00680D  1  4D           
+00680E  1  DD 4E        RULESN:     asciiset "]N"
+006810  1  A0 A8 CE A9              asciiset " (N) =EH4N"
+006814  1  A0 BD C5 C8  
+006818  1  B4 4E        
+00681A  1  C5 A8 CE C7              asciiset "E(NG)+=NJ"
+00681E  1  A9 AB BD CE  
+006822  1  4A           
+006823  1  A8 CE C7 A9              asciiset "(NG)R=NXG"
+006827  1  D2 BD CE D8  
+00682B  1  47           
+00682C  1  A8 CE C7 A9              asciiset "(NG)#=NXG"
+006830  1  A3 BD CE D8  
+006834  1  47           
+006835  1  A8 CE C7 CC              asciiset "(NGL)%=NXGUL"
+006839  1  A9 A5 BD CE  
+00683D  1  D8 C7 D5 4C  
+006841  1  A8 CE C7 A9              asciiset "(NG)=NX"
+006845  1  BD CE 58     
+006848  1  A8 CE CB A9              asciiset "(NK)=NXK"
+00684C  1  BD CE D8 4B  
+006850  1  A0 A8 CE CF              asciiset " (NOW) =NAW4 "
+006854  1  D7 A9 A0 BD  
+006858  1  CE C1 D7 B4  
+00685D  1  CE A8 CE A9              asciiset "N(N)="
+006861  1  3D           
+006862  1  A8 CE CF CE              asciiset "(NON)E=NAH4N"
+006866  1  A9 C5 BD CE  
+00686A  1  C1 C8 B4 4E  
+00686E  1  A8 CE A9 BD              asciiset "(N)=N"
+006872  1  4E           
+006873  1  DD 4F        RULESO:     asciiset "]O"
+006875  1  A0 A8 CF A9              asciiset " (O) =OH4W"
+006879  1  A0 BD CF C8  
+00687D  1  B4 57        
+00687F  1  A8 CF C6 A9              asciiset "(OF) =AHV"
+006883  1  A0 BD C1 C8  
+006887  1  56           
+006888  1  A0 A8 CF C8              asciiset " (OH) =OW5 "
+00688C  1  A9 A0 BD CF  
+006890  1  D7 B5 20     
+006893  1  A8 CF D2 CF              asciiset "(OROUGH)=ER4OW"
+006897  1  D5 C7 C8 A9  
+00689B  1  BD C5 D2 B4  
+0068A1  1  A3 BA A8 CF              asciiset "#:(OR) =ER"
+0068A5  1  D2 A9 A0 BD  
+0068A9  1  C5 52        
+0068AB  1  A3 BA A8 CF              asciiset "#:(ORS) =ERZ"
+0068AF  1  D2 D3 A9 A0  
+0068B3  1  BD C5 D2 5A  
+0068B7  1  A8 CF D2 A9              asciiset "(OR)=AOR"
+0068BB  1  BD C1 CF 52  
+0068BF  1  A0 A8 CF CE              asciiset " (ONE)=WAHN"
+0068C3  1  C5 A9 BD D7  
+0068C7  1  C1 C8 4E     
+0068CA  1  A3 A8 CF CE              asciiset "#(ONE) =WAHN"
+0068CE  1  C5 A9 A0 BD  
+0068D2  1  D7 C1 C8 4E  
+0068D6  1  A8 CF D7 A9              asciiset "(OW)=OW"
+0068DA  1  BD CF 57     
+0068DD  1  A0 A8 CF D6              asciiset " (OVER)=OW5VER"
+0068E1  1  C5 D2 A9 BD  
+0068E5  1  CF D7 B5 D6  
+0068EB  1  D0 D2 A8 CF              asciiset "PR(O)V=UW4"
+0068EF  1  A9 D6 BD D5  
+0068F3  1  D7 34        
+0068F5  1  A8 CF D6 A9              asciiset "(OV)=AH4V"
+0068F9  1  BD C1 C8 B4  
+0068FD  1  56           
+0068FE  1  A8 CF A9 DE              asciiset "(O)^%=OW5 "
+006902  1  A5 BD CF D7  
+006906  1  B5 20        
+006908  1  A8 CF A9 DE              asciiset "(O)^EN=OW"
+00690C  1  C5 CE BD CF  
+006910  1  57           
+006911  1  A8 CF A9 DE              asciiset "(O)^I#=OW5 "
+006915  1  C9 A3 BD CF  
+006919  1  D7 B5 20     
+00691C  1  A8 CF CC A9              asciiset "(OL)D=OW4L"
+006920  1  C4 BD CF D7  
+006924  1  B4 4C        
+006926  1  A8 CF D5 C7              asciiset "(OUGHT)=AO5T "
+00692A  1  C8 D4 A9 BD  
+00692E  1  C1 CF B5 D4  
+006933  1  A8 CF D5 C7              asciiset "(OUGH)=AH5F"
+006937  1  C8 A9 BD C1  
+00693B  1  C8 B5 46     
+00693E  1  A0 A8 CF D5              asciiset " (OU)=AW"
+006942  1  A9 BD C1 57  
+006946  1  C8 A8 CF D5              asciiset "H(OU)S#=AW4 "
+00694A  1  A9 D3 A3 BD  
+00694E  1  C1 D7 B4 20  
+006952  1  A8 CF D5 D3              asciiset "(OUS)=AXS"
+006956  1  A9 BD C1 D8  
+00695A  1  53           
+00695B  1  A8 CF D5 D2              asciiset "(OUR)=OHR"
+00695F  1  A9 BD CF C8  
+006963  1  52           
+006964  1  A8 CF D5 CC              asciiset "(OULD)=UH5D "
+006968  1  C4 A9 BD D5  
+00696C  1  C8 B5 C4 20  
+006970  1  A8 CF D5 A9              asciiset "(OU)^L=AH5 "
+006974  1  DE CC BD C1  
+006978  1  C8 B5 20     
+00697B  1  A8 CF D5 D0              asciiset "(OUP)=UW5P "
+00697F  1  A9 BD D5 D7  
+006983  1  B5 D0 20     
+006986  1  A8 CF D5 A9              asciiset "(OU)=AW"
+00698A  1  BD C1 57     
+00698D  1  A8 CF D9 A9              asciiset "(OY)=OY"
+006991  1  BD CF 59     
+006994  1  A8 CF C9 CE              asciiset "(OING)=OW4IHNX"
+006998  1  C7 A9 BD CF  
+00699C  1  D7 B4 C9 C8  
+0069A2  1  A8 CF C9 A9              asciiset "(OI)=OY5 "
+0069A6  1  BD CF D9 B5  
+0069AA  1  20           
+0069AB  1  A8 CF CF D2              asciiset "(OOR)=OH5R"
+0069AF  1  A9 BD CF C8  
+0069B3  1  B5 52        
+0069B5  1  A8 CF CF CB              asciiset "(OOK)=UH5K"
+0069B9  1  A9 BD D5 C8  
+0069BD  1  B5 4B        
+0069BF  1  C6 A8 CF CF              asciiset "F(OOD)=UW5D"
+0069C3  1  C4 A9 BD D5  
+0069C7  1  D7 B5 44     
+0069CA  1  CC A8 CF CF              asciiset "L(OOD)=AH5D "
+0069CE  1  C4 A9 BD C1  
+0069D2  1  C8 B5 C4 20  
+0069D6  1  CD A8 CF CF              asciiset "M(OOD)=UW5D"
+0069DA  1  C4 A9 BD D5  
+0069DE  1  D7 B5 44     
+0069E1  1  A8 CF CF C4              asciiset "(OOD)=UH5D"
+0069E5  1  A9 BD D5 C8  
+0069E9  1  B5 44        
+0069EB  1  C6 A8 CF CF              asciiset "F(OOT)=UH5T"
+0069EF  1  D4 A9 BD D5  
+0069F3  1  C8 B5 54     
+0069F6  1  A8 CF CF A9              asciiset "(OO)=UW5 "
+0069FA  1  BD D5 D7 B5  
+0069FE  1  20           
+0069FF  1  A8 CF A7 A9              asciiset "(O')=OH"
+006A03  1  BD CF 48     
+006A06  1  A8 CF A9 C5              asciiset "(O)E=OW"
+006A0A  1  BD CF 57     
+006A0D  1  A8 CF A9 A0              asciiset "(O) =OW"
+006A11  1  BD CF 57     
+006A14  1  A8 CF C1 A9              asciiset "(OA)=OW4 "
+006A18  1  BD CF D7 B4  
+006A1C  1  20           
+006A1D  1  A0 A8 CF CE              asciiset " (ONLY)=OW4NLIY"
+006A21  1  CC D9 A9 BD  
+006A25  1  CF D7 B4 CE  
+006A2C  1  A0 A8 CF CE              asciiset " (ONCE)=WAH4NS"
+006A30  1  C3 C5 A9 BD  
+006A34  1  D7 C1 C8 B4  
+006A3A  1  A8 CF CE A7              asciiset "(ON'T)=OW4NT"
+006A3E  1  D4 A9 BD CF  
+006A42  1  D7 B4 CE 54  
+006A46  1  C3 A8 CF A9              asciiset "C(O)N=AA"
+006A4A  1  CE BD C1 41  
+006A4E  1  A8 CF A9 CE              asciiset "(O)NG=AO"
+006A52  1  C7 BD C1 4F  
+006A56  1  A0 BA DE A8              asciiset " :^(O)N=AH"
+006A5A  1  CF A9 CE BD  
+006A5E  1  C1 48        
+006A60  1  C9 A8 CF CE              asciiset "I(ON)=UN"
+006A64  1  A9 BD D5 4E  
+006A68  1  A3 BA A8 CF              asciiset "#:(ON) =UN"
+006A6C  1  CE A9 A0 BD  
+006A70  1  D5 4E        
+006A72  1  A3 DE A8 CF              asciiset "#^(ON)=UN"
+006A76  1  CE A9 BD D5  
+006A7A  1  4E           
+006A7B  1  A8 CF A9 D3              asciiset "(O)ST =OW"
+006A7F  1  D4 A0 BD CF  
+006A83  1  57           
+006A84  1  A8 CF C6 A9              asciiset "(OF)^=AO4F"
+006A88  1  DE BD C1 CF  
+006A8C  1  B4 46        
+006A8E  1  A8 CF D4 C8              asciiset "(OTHER)=AH5DHER"
+006A92  1  C5 D2 A9 BD  
+006A96  1  C1 C8 B5 C4  
+006A9D  1  D2 A8 CF A9              asciiset "R(O)B=RAA"
+006AA1  1  C2 BD D2 C1  
+006AA5  1  41           
+006AA6  1  D0 D2 A8 CF              asciiset "PR(O):#=ROW5"
+006AAA  1  A9 BA A3 BD  
+006AAE  1  D2 CF D7 35  
+006AB2  1  A8 CF D3 D3              asciiset "(OSS) =AO5S"
+006AB6  1  A9 A0 BD C1  
+006ABA  1  CF B5 53     
+006ABD  1  A3 BA DE A8              asciiset "#:^(OM)=AHM"
+006AC1  1  CF CD A9 BD  
+006AC5  1  C1 C8 4D     
+006AC8  1  A8 CF A9 BD              asciiset "(O)=AA"
+006ACC  1  C1 41        
+006ACE  1  DD 50        RULESP:     asciiset "]P"
+006AD0  1  A0 A8 D0 A9              asciiset " (P) =PIY4"
+006AD4  1  A0 BD D0 C9  
+006AD8  1  D9 34        
+006ADA  1  A8 D0 C8 A9              asciiset "(PH)=F"
+006ADE  1  BD 46        
+006AE0  1  A8 D0 C5 CF              asciiset "(PEOPL)=PIY5PUL "
+006AE4  1  D0 CC A9 BD  
+006AE8  1  D0 C9 D9 B5  
+006AF0  1  A8 D0 CF D7              asciiset "(POW)=PAW4 "
+006AF4  1  A9 BD D0 C1  
+006AF8  1  D7 B4 20     
+006AFB  1  A8 D0 D5 D4              asciiset "(PUT) =PUHT"
+006AFF  1  A9 A0 BD D0  
+006B03  1  D5 C8 54     
+006B06  1  A8 D0 A9 D0              asciiset "(P)P="
+006B0A  1  3D           
+006B0B  1  A0 A8 D0 A9              asciiset " (P)N="
+006B0F  1  CE 3D        
+006B11  1  A0 A8 D0 A9              asciiset " (P)S="
+006B15  1  D3 3D        
+006B17  1  A0 A8 D0 D2              asciiset " (PROF.)=PROHFEH4SER"
+006B1B  1  CF C6 AE A9  
+006B1F  1  BD D0 D2 CF  
+006B2B  1  A8 D0 A9 BD              asciiset "(P)=P"
+006B2F  1  50           
+006B30  1  DD 51        RULESQ:     asciiset "]Q"
+006B32  1  A0 A8 D1 A9              asciiset " (Q) =KYUW4"
+006B36  1  A0 BD CB D9  
+006B3A  1  D5 D7 34     
+006B3D  1  A8 D1 D5 C1              asciiset "(QUAR)=KWOH5R "
+006B41  1  D2 A9 BD CB  
+006B45  1  D7 CF C8 B5  
+006B4B  1  A8 D1 D5 A9              asciiset "(QU)=KW"
+006B4F  1  BD CB 57     
+006B52  1  A8 D1 A9 BD              asciiset "(Q)=K"
+006B56  1  4B           
+006B57  1  DD 52        RULESR:     asciiset "]R"
+006B59  1  A0 A8 D2 A9              asciiset " (R) =AA4R"
+006B5D  1  A0 BD C1 C1  
+006B61  1  B4 52        
+006B63  1  A0 A8 D2 C5              asciiset " (RE)^#=RIY"
+006B67  1  A9 DE A3 BD  
+006B6B  1  D2 C9 59     
+006B6E  1  A8 D2 A9 D2              asciiset "(R)R="
+006B72  1  3D           
+006B73  1  A8 D2 A9 BD              asciiset "(R)=R"
+006B77  1  52           
+006B78  1  DD 53        RULESS:     asciiset "]S"
+006B7A  1  A0 A8 D3 A9              asciiset " (S) =EH4S"
+006B7E  1  A0 BD C5 C8  
+006B82  1  B4 53        
+006B84  1  A8 D3 C8 A9              asciiset "(SH)=SH"
+006B88  1  BD D3 48     
+006B8B  1  A3 A8 D3 C9              asciiset "#(SION)=ZHUN"
+006B8F  1  CF CE A9 BD  
+006B93  1  DA C8 D5 4E  
+006B97  1  A8 D3 CF CD              asciiset "(SOME)=SAHM"
+006B9B  1  C5 A9 BD D3  
+006B9F  1  C1 C8 4D     
+006BA2  1  A3 A8 D3 D5              asciiset "#(SUR)#=ZHER"
+006BA6  1  D2 A9 A3 BD  
+006BAA  1  DA C8 C5 52  
+006BAE  1  A8 D3 D5 D2              asciiset "(SUR)#=SHER"
+006BB2  1  A9 A3 BD D3  
+006BB6  1  C8 C5 52     
+006BB9  1  A3 A8 D3 D5              asciiset "#(SU)#=ZHUW"
+006BBD  1  A9 A3 BD DA  
+006BC1  1  C8 D5 57     
+006BC4  1  A3 A8 D3 D3              asciiset "#(SSU)#=SHUW"
+006BC8  1  D5 A9 A3 BD  
+006BCC  1  D3 C8 D5 57  
+006BD0  1  A3 A8 D3 C5              asciiset "#(SED) =ZD"
+006BD4  1  C4 A9 A0 BD  
+006BD8  1  DA 44        
+006BDA  1  A3 A8 D3 A9              asciiset "#(S)#=Z"
+006BDE  1  A3 BD 5A     
+006BE1  1  A8 D3 C1 C9              asciiset "(SAID)=SEHD"
+006BE5  1  C4 A9 BD D3  
+006BE9  1  C5 C8 44     
+006BEC  1  DE A8 D3 C9              asciiset "^(SION)=SHUN"
+006BF0  1  CF CE A9 BD  
+006BF4  1  D3 C8 D5 4E  
+006BF8  1  A8 D3 A9 D3              asciiset "(S)S="
+006BFC  1  3D           
+006BFD  1  AE A8 D3 A9              asciiset ".(S) =Z"
+006C01  1  A0 BD 5A     
+006C04  1  A3 BA AE C5              asciiset "#:.E(S) =Z"
+006C08  1  A8 D3 A9 A0  
+006C0C  1  BD 5A        
+006C0E  1  A3 BA DE A3              asciiset "#:^#(S) =S"
+006C12  1  A8 D3 A9 A0  
+006C16  1  BD 53        
+006C18  1  D5 A8 D3 A9              asciiset "U(S) =S"
+006C1C  1  A0 BD 53     
+006C1F  1  A0 BA A3 A8              asciiset " :#(S) =Z"
+006C23  1  D3 A9 A0 BD  
+006C27  1  5A           
+006C28  1  A3 A3 A8 D3              asciiset "##(S) =Z"
+006C2C  1  A9 A0 BD 5A  
+006C30  1  A0 A8 D3 C3              asciiset " (SCH)=SK"
+006C34  1  C8 A9 BD D3  
+006C38  1  4B           
+006C39  1  A8 D3 A9 C3              asciiset "(S)C+="
+006C3D  1  AB 3D        
+006C3F  1  A3 A8 D3 CD              asciiset "#(SM)=ZUM"
+006C43  1  A9 BD DA D5  
+006C47  1  4D           
+006C48  1  A3 A8 D3 CE              asciiset "#(SN)'=ZUN"
+006C4C  1  A9 A7 BD DA  
+006C50  1  D5 4E        
+006C52  1  A8 D3 D4 CC              asciiset "(STLE)=SUL"
+006C56  1  C5 A9 BD D3  
+006C5A  1  D5 4C        
+006C5C  1  A8 D3 A9 BD              asciiset "(S)=S"
+006C60  1  53           
+006C61  1  DD 54        RULEST:     asciiset "]T"
+006C63  1  A0 A8 D4 A9              asciiset " (T) =TIY4"
+006C67  1  A0 BD D4 C9  
+006C6B  1  D9 34        
+006C6D  1  A0 A8 D4 C8              asciiset " (THE) #=DHIY"
+006C71  1  C5 A9 A0 A3  
+006C75  1  BD C4 C8 C9  
+006C7A  1  A0 A8 D4 C8              asciiset " (THE) =DHAX"
+006C7E  1  C5 A9 A0 BD  
+006C82  1  C4 C8 C1 58  
+006C86  1  A8 D4 CF A9              asciiset "(TO) =TUX"
+006C8A  1  A0 BD D4 D5  
+006C8E  1  58           
+006C8F  1  A0 A8 D4 C8              asciiset " (THAT)=DHAET"
+006C93  1  C1 D4 A9 BD  
+006C97  1  C4 C8 C1 C5  
+006C9C  1  A0 A8 D4 C8              asciiset " (THIS) =DHIHS"
+006CA0  1  C9 D3 A9 A0  
+006CA4  1  BD C4 C8 C9  
+006CAA  1  A0 A8 D4 C8              asciiset " (THEY)=DHEY"
+006CAE  1  C5 D9 A9 BD  
+006CB2  1  C4 C8 C5 59  
+006CB6  1  A0 A8 D4 C8              asciiset " (THERE)=DHEHR"
+006CBA  1  C5 D2 C5 A9  
+006CBE  1  BD C4 C8 C5  
+006CC4  1  A8 D4 C8 C5              asciiset "(THER)=DHER"
+006CC8  1  D2 A9 BD C4  
+006CCC  1  C8 C5 52     
+006CCF  1  A8 D4 C8 C5              asciiset "(THEIR)=DHEHR"
+006CD3  1  C9 D2 A9 BD  
+006CD7  1  C4 C8 C5 C8  
+006CDC  1  A0 A8 D4 C8              asciiset " (THAN) =DHAEN"
+006CE0  1  C1 CE A9 A0  
+006CE4  1  BD C4 C8 C1  
+006CEA  1  A0 A8 D4 C8              asciiset " (THEM) =DHEHM"
+006CEE  1  C5 CD A9 A0  
+006CF2  1  BD C4 C8 C5  
+006CF8  1  A8 D4 C8 C5              asciiset "(THESE) =DHIYZ"
+006CFC  1  D3 C5 A9 A0  
+006D00  1  BD C4 C8 C9  
+006D06  1  A0 A8 D4 C8              asciiset " (THEN)=DHEHN"
+006D0A  1  C5 CE A9 BD  
+006D0E  1  C4 C8 C5 C8  
+006D13  1  A8 D4 C8 D2              asciiset "(THROUGH)=THRUW4 "
+006D17  1  CF D5 C7 C8  
+006D1B  1  A9 BD D4 C8  
+006D24  1  A8 D4 C8 CF              asciiset "(THOSE)=DHOHZ"
+006D28  1  D3 C5 A9 BD  
+006D2C  1  C4 C8 CF C8  
+006D31  1  A8 D4 C8 CF              asciiset "(THOUGH) =DHOW"
+006D35  1  D5 C7 C8 A9  
+006D39  1  A0 BD C4 C8  
+006D3F  1  A8 D4 CF C4              asciiset "(TODAY)=TUXDEY"
+006D43  1  C1 D9 A9 BD  
+006D47  1  D4 D5 D8 C4  
+006D4D  1  A8 D4 CF CD              asciiset "(TOMO)RROW=TUMAA5"
+006D51  1  CF A9 D2 D2  
+006D55  1  CF D7 BD D4  
+006D5E  1  A8 D4 CF A9              asciiset "(TO)TAL=TOW5"
+006D62  1  D4 C1 CC BD  
+006D66  1  D4 CF D7 35  
+006D6A  1  A0 A8 D4 C8              asciiset " (THUS)=DHAH4S "
+006D6E  1  D5 D3 A9 BD  
+006D72  1  C4 C8 C1 C8  
+006D79  1  A8 D4 C8 A9              asciiset "(TH)=TH"
+006D7D  1  BD D4 48     
+006D80  1  A3 BA A8 D4              asciiset "#:(TED) =TIXD"
+006D84  1  C5 C4 A9 A0  
+006D88  1  BD D4 C9 D8  
+006D8D  1  D3 A8 D4 C9              asciiset "S(TI)#N=CH"
+006D91  1  A9 A3 CE BD  
+006D95  1  C3 48        
+006D97  1  A8 D4 C9 A9              asciiset "(TI)O=SH"
+006D9B  1  CF BD D3 48  
+006D9F  1  A8 D4 C9 A9              asciiset "(TI)A=SH"
+006DA3  1  C1 BD D3 48  
+006DA7  1  A8 D4 C9 C5              asciiset "(TIEN)=SHUN"
+006DAB  1  CE A9 BD D3  
+006DAF  1  C8 D5 4E     
+006DB2  1  A8 D4 D5 D2              asciiset "(TUR)#=CHER"
+006DB6  1  A9 A3 BD C3  
+006DBA  1  C8 C5 52     
+006DBD  1  A8 D4 D5 A9              asciiset "(TU)A=CHUW"
+006DC1  1  C1 BD C3 C8  
+006DC5  1  D5 57        
+006DC7  1  A0 A8 D4 D7              asciiset " (TWO)=TUW"
+006DCB  1  CF A9 BD D4  
+006DCF  1  D5 57        
+006DD1  1  A6 A8 D4 A9              asciiset "&(T)EN="
+006DD5  1  C5 CE 3D     
+006DD8  1  C6 A8 D4 A9              asciiset "F(T)EN="
+006DDC  1  C5 CE 3D     
+006DDF  1  A8 D4 A9 BD              asciiset "(T)=T"
+006DE3  1  54           
+006DE4  1  DD 55        RULESU:     asciiset "]U"
+006DE6  1  A0 A8 D5 A9              asciiset " (U) =YUW4"
+006DEA  1  A0 BD D9 D5  
+006DEE  1  D7 34        
+006DF0  1  A0 A8 D5 CE              asciiset " (UN)I=YUWN"
+006DF4  1  A9 C9 BD D9  
+006DF8  1  D5 D7 4E     
+006DFB  1  A0 A8 D5 CE              asciiset " (UN)=AHN"
+006DFF  1  A9 BD C1 C8  
+006E03  1  4E           
+006E04  1  A0 A8 D5 D0              asciiset " (UPON)=AXPAON"
+006E08  1  CF CE A9 BD  
+006E0C  1  C1 D8 D0 C1  
+006E12  1  C0 A8 D5 D2              asciiset "@(UR)#=UH4R"
+006E16  1  A9 A3 BD D5  
+006E1A  1  C8 B4 52     
+006E1D  1  A8 D5 D2 A9              asciiset "(UR)#=YUH4R"
+006E21  1  A3 BD D9 D5  
+006E25  1  C8 B4 52     
+006E28  1  A8 D5 D2 A9              asciiset "(UR)=ER"
+006E2C  1  BD C5 52     
+006E2F  1  A8 D5 A9 DE              asciiset "(U)^ =AH"
+006E33  1  A0 BD C1 48  
+006E37  1  A8 D5 A9 DE              asciiset "(U)^^=AH5 "
+006E3B  1  DE BD C1 C8  
+006E3F  1  B5 20        
+006E41  1  A8 D5 D9 A9              asciiset "(UY)=AY5 "
+006E45  1  BD C1 D9 B5  
+006E49  1  20           
+006E4A  1  A0 C7 A8 D5              asciiset " G(U)#="
+006E4E  1  A9 A3 3D     
+006E51  1  C7 A8 D5 A9              asciiset "G(U)%="
+006E55  1  A5 3D        
+006E57  1  C7 A8 D5 A9              asciiset "G(U)#=W"
+006E5B  1  A3 BD 57     
+006E5E  1  A3 CE A8 D5              asciiset "#N(U)=YUW"
+006E62  1  A9 BD D9 D5  
+006E66  1  57           
+006E67  1  C0 A8 D5 A9              asciiset "@(U)=UW"
+006E6B  1  BD D5 57     
+006E6E  1  A8 D5 A9 BD              asciiset "(U)=YUW"
+006E72  1  D9 D5 57     
+006E75  1  DD 56        RULESV:     asciiset "]V"
+006E77  1  A0 A8 D6 A9              asciiset " (V) =VIY4"
+006E7B  1  A0 BD D6 C9  
+006E7F  1  D9 34        
+006E81  1  A8 D6 C9 C5              asciiset "(VIEW)=VYUW5 "
+006E85  1  D7 A9 BD D6  
+006E89  1  D9 D5 D7 B5  
+006E8E  1  A8 D6 A9 BD              asciiset "(V)=V"
+006E92  1  56           
+006E93  1  DD 57        RULESW:     asciiset "]W"
+006E95  1  A0 A8 D7 A9              asciiset " (W) =DAH4BULYUW"
+006E99  1  A0 BD C4 C1  
+006E9D  1  C8 B4 C2 D5  
+006EA5  1  A0 A8 D7 C5              asciiset " (WERE)=WER"
+006EA9  1  D2 C5 A9 BD  
+006EAD  1  D7 C5 52     
+006EB0  1  A8 D7 C1 A9              asciiset "(WA)SH=WAA"
+006EB4  1  D3 C8 BD D7  
+006EB8  1  C1 41        
+006EBA  1  A8 D7 C1 A9              asciiset "(WA)ST=WEY"
+006EBE  1  D3 D4 BD D7  
+006EC2  1  C5 59        
+006EC4  1  A8 D7 C1 A9              asciiset "(WA)S=WAH"
+006EC8  1  D3 BD D7 C1  
+006ECC  1  48           
+006ECD  1  A8 D7 C1 A9              asciiset "(WA)T=WAA"
+006ED1  1  D4 BD D7 C1  
+006ED5  1  41           
+006ED6  1  A8 D7 C8 C5              asciiset "(WHERE)=WHEHR"
+006EDA  1  D2 C5 A9 BD  
+006EDE  1  D7 C8 C5 C8  
+006EE3  1  A8 D7 C8 C1              asciiset "(WHAT)=WHAHT"
+006EE7  1  D4 A9 BD D7  
+006EEB  1  C8 C1 C8 54  
+006EEF  1  A8 D7 C8 CF              asciiset "(WHOL)=/HOWL"
+006EF3  1  CC A9 BD AF  
+006EF7  1  C8 CF D7 4C  
+006EFB  1  A8 D7 C8 CF              asciiset "(WHO)=/HUW"
+006EFF  1  A9 BD AF C8  
+006F03  1  D5 57        
+006F05  1  A8 D7 C8 A9              asciiset "(WH)=WH"
+006F09  1  BD D7 48     
+006F0C  1  A8 D7 C1 D2              asciiset "(WAR)#=WEHR"
+006F10  1  A9 A3 BD D7  
+006F14  1  C5 C8 52     
+006F17  1  A8 D7 C1 D2              asciiset "(WAR)=WAOR"
+006F1B  1  A9 BD D7 C1  
+006F1F  1  CF 52        
+006F21  1  A8 D7 CF D2              asciiset "(WOR)^=WER"
+006F25  1  A9 DE BD D7  
+006F29  1  C5 52        
+006F2B  1  A8 D7 D2 A9              asciiset "(WR)=R"
+006F2F  1  BD 52        
+006F31  1  A8 D7 CF CD              asciiset "(WOM)A=WUHM"
+006F35  1  A9 C1 BD D7  
+006F39  1  D5 C8 4D     
+006F3C  1  A8 D7 CF CD              asciiset "(WOM)E=WIHM"
+006F40  1  A9 C5 BD D7  
+006F44  1  C9 C8 4D     
+006F47  1  A8 D7 C5 C1              asciiset "(WEA)R=WEH"
+006F4B  1  A9 D2 BD D7  
+006F4F  1  C5 48        
+006F51  1  A8 D7 C1 CE              asciiset "(WANT)=WAA5NT"
+006F55  1  D4 A9 BD D7  
+006F59  1  C1 C1 B5 CE  
+006F5E  1  C1 CE D3 A8              asciiset "ANS(WER)=ER "
+006F62  1  D7 C5 D2 A9  
+006F66  1  BD C5 D2 20  
+006F6A  1  A8 D7 A9 BD              asciiset "(W)=W"
+006F6E  1  57           
+006F6F  1  DD 58        RULESX:     asciiset "]X"
+006F71  1  A0 A8 D8 A9              asciiset " (X) =EH4KS"
+006F75  1  A0 BD C5 C8  
+006F79  1  B4 CB 53     
+006F7C  1  A0 A8 D8 A9              asciiset " (X)=Z"
+006F80  1  BD 5A        
+006F82  1  A8 D8 A9 BD              asciiset "(X)=KS"
+006F86  1  CB 53        
+006F88  1  DD 59        RULESY:     asciiset "]Y"
+006F8A  1  A0 A8 D9 A9              asciiset " (Y) =WAY4"
+006F8E  1  A0 BD D7 C1  
+006F92  1  D9 34        
+006F94  1  A8 D9 CF D5              asciiset "(YOUNG)=YAHNX"
+006F98  1  CE C7 A9 BD  
+006F9C  1  D9 C1 C8 CE  
+006FA1  1  A0 A8 D9 CF              asciiset " (YOUR)=YOHR"
+006FA5  1  D5 D2 A9 BD  
+006FA9  1  D9 CF C8 52  
+006FAD  1  A0 A8 D9 CF              asciiset " (YOU)=YUW"
+006FB1  1  D5 A9 BD D9  
+006FB5  1  D5 57        
+006FB7  1  A0 A8 D9 C5              asciiset " (YES)=YEHS"
+006FBB  1  D3 A9 BD D9  
+006FBF  1  C5 C8 53     
+006FC2  1  A0 A8 D9 A9              asciiset " (Y)=Y"
+006FC6  1  BD 59        
+006FC8  1  C6 A8 D9 A9              asciiset "F(Y)=AY"
+006FCC  1  BD C1 59     
+006FCF  1  D0 D3 A8 D9              asciiset "PS(YCH)=AYK "
+006FD3  1  C3 C8 A9 BD  
+006FD7  1  C1 D9 CB 20  
+006FDB  1  A3 BA DE A8              asciiset "#:^(Y) =IY"
+006FDF  1  D9 A9 A0 BD  
+006FE3  1  C9 59        
+006FE5  1  A3 BA DE A8              asciiset "#:^(Y)I=IY"
+006FE9  1  D9 A9 C9 BD  
+006FED  1  C9 59        
+006FEF  1  A0 BA A8 D9              asciiset " :(Y) =AY"
+006FF3  1  A9 A0 BD C1  
+006FF7  1  59           
+006FF8  1  A0 BA A8 D9              asciiset " :(Y)#=AY"
+006FFC  1  A9 A3 BD C1  
+007000  1  59           
+007001  1  A0 BA A8 D9              asciiset " :(Y)^+:#=IH"
+007005  1  A9 DE AB BA  
+007009  1  A3 BD C9 48  
+00700D  1  A0 BA A8 D9              asciiset " :(Y)^#=AY"
+007011  1  A9 DE A3 BD  
+007015  1  C1 59        
+007017  1  A8 D9 A9 BD              asciiset "(Y)=IH"
+00701B  1  C9 48        
+00701D  1  DD 5A        RULESZ:     asciiset "]Z"
+00701F  1  A0 A8 DA A9              asciiset " (Z) =ZIY4"
+007023  1  A0 BD DA C9  
+007027  1  D9 34        
+007029  1  A8 DA A9 BD              asciiset "(Z)=Z"
+00702D  1  5A           
+00702E  1               
+00702E  1  xx xx xx xx              .res $131
+007032  1  xx xx xx xx  
+007036  1  xx xx xx xx  
+00715F  1               
+00715F  1               
