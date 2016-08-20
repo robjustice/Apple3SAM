@@ -19,6 +19,10 @@ The Apple2 SAM implementation allowed the Pitch and Speed parameters to be adjus
    
 The error code was able to be read in the original SAM program by peeking the value directly. If an error occurs, eg phoneme not valid, then the error equals the position in the input string where the error occured. If all is ok, the error code = 255. The driver allows the error code to be passed when a read request occurs. The value is returned as ASCII decimal. eg three ascii chars '255' or '002'.
    
+##Quick Demo
+1. boot the disk image (mess or real hardware)
+2. type RUN DEMO
+
 ##Usage Example
 
 The driver can be used very easily from basic, here is an example program:
