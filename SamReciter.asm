@@ -1,5 +1,5 @@
             .NOPATCHLIST
-            .TITLE  "SOS SAM Driver -- 0.42  07-Jun-16"
+            .TITLE  "SOS SAM Driver -- 0.5  03-Oct-16"
 ;-----------------------------------------------------------------------
 ;
 ;
@@ -34,6 +34,10 @@
 ;               A2 sam exactly. (after triming to 6 bits)
 ;       0.43    17-Jul-16
 ;               Convert lowercase input to upper
+;       0.5     02-Oct-16
+;               Add function to read the converted 'text to phoneme' string from reciter
+;               First read after a write will return the error code
+;               Second read after a write will return the converted string (phonemes)
 ;
 ;
 ;
@@ -274,7 +278,8 @@ L00FF       .EQU    000FF
 OPENFLG     .BYTE   FALSE                     ;Device 0 open flag
             .BYTE   FALSE                     ;Device 1 open flag
 ERROR       .BYTE   0FF     ;output error code	
-INPUTBUF    .BLOCK  0100	
+INPUTBUF    .BLOCK  0100
+READNUM     .BYTE   000     ;flag to determine number of reads after write, 0=none
 ;
 ;sinus table
 ;
@@ -2276,7 +2281,13 @@ SAM_READ    .EQU    *
             BMI     $010                ;Yes
             JMP     NOTOPEN             ;No, return error
 
-$010        LDY     #00
+$010        LDA     READNUM             ;check number of previous reads
+            BNE     RETPHONM            ;yes, there has been, return converted string
+                                        ;otherwise, return error code
+;
+;return error code
+;
+            LDY     #00
             STY     L00F0               ;temp output hundreds digit
             STY     L00F1               ;temp output tens digit
             STY     L00F2               ;temp output ones digit
@@ -2321,6 +2332,23 @@ ONES        STA     L00F2               ;result is under 10, can copy directly t
             INY
             STA     (RTNCNT),Y          ;actual characters read count, high byte
             RTS
+;
+;return converted string containing Phonemes
+;
+RETPHONM    LDY     #00
+$020        LDA     INPUTBUF,Y          ;read converted text from INPUTBUF
+            STA     (BUFFER),Y          ;store in read buffer
+            INY
+            CMP     #ASC_CR             ;if CR then this is the end of the string
+            BNE     $020                ;no, next
+            TYA                         ;yes, ret count = index +1
+            LDY     #00
+            STA     (RTNCNT),Y          ;actual characters read count, low byte
+            LDA     #00
+            INY
+            STA     (RTNCNT),Y          ;actual characters read count, high byte
+            RTS
+
             .PAGE
 
 ;-----------------------------------------------------------------------
@@ -2449,6 +2477,7 @@ ERRORRET    SEC
             
 SPEAK       LDA     #000
             STA     014FC               ;disable extended indirect addressing for FB/FC
+            STA     READNUM             ;clear previous reads number
             LDA     EReg
             ORA     #BITON7
             STA     EReg                ;set 1MHz
