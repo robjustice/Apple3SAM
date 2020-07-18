@@ -313,7 +313,7 @@ SAMCONST:   .byte $00,$00,$00,$00,$00,$00,$00,$00
             .byte $00,$00,$00,$00,$00,$00,$00,$00
             .byte $00,$00,$00,$00,$00,$00,$00,$00
             .byte $00,$00,$00,$00,$00,$00,$00,$00
-			.byte $F1,$E2,$D3,$BB,$7C,$95,$01,$02
+            .byte $F1,$E2,$D3,$BB,$7C,$95,$01,$02
             .byte $03,$03,$00,$72,$00,$02,$00,$00
             .byte $00,$00,$00,$00,$00,$00,$00,$00
             .byte $00,$00,$00,$00,$00,$00,$00,$00
@@ -506,7 +506,7 @@ L8521:      .res $3C
 L855D:      .res $3C
 L8599:      .res $3C
 ;
-;sero page temp storage
+;zero page temp storage
 L85D5:      .res $28 
 
 ;amplitudeRescale
@@ -611,8 +611,8 @@ L86AE:      lda FREQ1T,Y
             lda SAMCONST,Y
             sta BUFFER8,X
             clc
-			
-L86DA       = *+1			; pitch modifier
+
+L86DA       = *+1           ; pitch modifier
             lda #$40        ; pitch
             adc L00E8
             sta BUFFER1,X
@@ -822,26 +822,26 @@ L8869:      lda BUFFER8,Y
             ldx L00E8       ; get phase
             clc
             lda SINET,X     ; load sine value (high 4 bits)
-            ora BUFFER5,Y     ; get amplitude (in low 4 bits)
+            ora BUFFER5,Y   ; get amplitude (in low 4 bits)
             tax
             lda MULTT,X     ; multiplication table
             sta L00F5       ; store
             ldx L00E7       ; get phase
             lda SINET,X     ; load sine value (high 4 bits)
-            ora BUFFER6,Y     ; get amplitude (in low 4 bits)
+            ora BUFFER6,Y   ; get amplitude (in low 4 bits)
             tax
             lda MULTT,X     ; multiplication table
             adc L00F5       ; add with previous values
             sta L00F5       ; store
             ldx L00E6       ; get phase
             lda RECTT,X     ; load rect value (high 4 bits)
-            ora BUFFER7,Y     ; get amplitude (in low 4 bits)
+            ora BUFFER7,Y   ; get amplitude (in low 4 bits)
             tax
             lda MULTT,X     ; multiplication table
             adc L00F5       ; add with previous values
             adc #$80
 
-L88A2       = *+1		    ; slot modifier	
+L88A2       = *+1           ; slot modifier	
             sta LC0A0       ; output to DAC
             dec L00EA
             bne L88B2
@@ -849,7 +849,7 @@ L88A2       = *+1		    ; slot modifier
             dec L00ED
 L88AB:      bne L88AE
             rts
-			
+
 L88AF       =*+1            ; speed modifier			
 L88AE:      lda #$48        ; speed
             sta L00EA
@@ -1011,9 +1011,9 @@ PHOINDEX:    .res $100
 L8AC4       =   PHOINDEX+254
 PHOLENGT:    .res $100
 PHOSTRES:    .res $100
-			
+
 ;stressInputTable
-;           '*', '1', '2', '3', '4', '5', '6', '7', '8'		
+;           '*', '1', '2', '3', '4', '5', '6', '7', '8'
 STRESINT:   .byte $AA,$B1,$B2,$B3,$B4,$B5,$B6,$B7
             .byte $B8,$B9
 
@@ -1186,7 +1186,7 @@ SECHRTAB:
             .byte $CE ; 'N'
 ;
 ;flags
-;			
+;
 L8D72:      
              .byte  $00
              .byte  $00
@@ -1271,7 +1271,7 @@ L8D72:
 ;             .byte  $C1
 ;
 ;flags2
-;			
+;
 L8DC0:       .byte  $80,$C1,$C1,$C1,$C1,$00,$00,$00
              .byte  $00,$00,$00,$00,$00,$00,$00,$00
              .byte  $00,$00,$00,$00,$00,$00,$00,$10
@@ -1283,14 +1283,14 @@ L8DC0:       .byte  $80,$C1,$C1,$C1,$C1,$00,$00,$00
              .byte  $00,$00,$00,$00,$00,$04,$04,$04
              .byte  $00,$00,$00,$00,$00,$00
 ;
-;save registers			
+;save registers
 ;
 SAVEREGS:   sta L00FC    
             stx L00FB
             sty L00FA
             rts
 ;
-;restore registers			
+;restore registers
 ;
 RESTREGS:   lda L00FC
             ldx L00FB
@@ -1327,7 +1327,7 @@ L8E23:      dex
             rts
 ;
 ;initialise phoneme buffers and parse input string
-;			
+;
 L8E4E:      ldx #$00           ;clear all regs
             txa
             tay
@@ -1342,7 +1342,7 @@ L8E5C:      cpx #$C8           ;have we checked all input chars?
             sta INPUTSTR,X     ;store CR in current position
             rts                ;and return
 ;
-;parse input string			
+;parse input string
 ;
 L8E66:      lda INPUTSTR,X     ;load from input string
             cmp #$8D           ;is it a CR
@@ -1803,7 +1803,7 @@ L920E:      ldx L00F3
             inx
             stx L00FF
             jmp L91CC
-			
+
 L9235:      .byte $2C
 ;
 ; output
@@ -2041,16 +2041,16 @@ L93F6:      lda (L00FB),Y      ; read from applesoft storage
 ;
 SAMAPPS:    jsr SAVEZERO
             jsr FINDVAR        ; find $SA variable and copy to buffer at %9500
-;			
-;S.A.M. from machine language			
+;
+;S.A.M. from machine language
 ;
 SAMML:      lda #$FF           ; set no error    
             sta ERROR
             jsr L8E4E          ; process string and create phoneme list and stress
             lda ERROR
             cmp #$FF
-            bne L946F          ;error after parsing input string
-            jsr L8FAB          ; add something to lenght?
+            bne L946F          ; error after parsing input string
+            jsr L8FAB          ; add something to length?
             jsr L9191
             jsr L8EE9          ; add length
             jsr L927E
@@ -2088,7 +2088,7 @@ L946F:      jsr RESTZERO
             rts
 
 ;pad out
-			.res $7D
+            .res $7D
 
             jmp SAMAPPS      ;S.A.M. from Applesoft
             jmp RECTAPPS     ;reciter from Applesoft
